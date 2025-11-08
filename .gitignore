@@ -1,1 +1,5 @@
+# JetBrains
 .idea
+
+# Build stuff
+cmake-build-*
