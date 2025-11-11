@@ -1,5 +1,18 @@
 #include "VulkanRenderer.h"
 
+#ifdef NDEBUG
+constexpr bool enableValidationLayers = false;
+#else
+constexpr bool enableValidationLayers = true;
+#endif
+
+void VulkanRenderer::run() {
+    initWindow();
+    initVulkan();
+    mainLoop();
+    cleanup();
+}
+
 void VulkanRenderer::initWindow() {
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW");
@@ -19,21 +32,59 @@ void VulkanRenderer::initVulkan() {
     createInstance();
 }
 
-void VulkanRenderer::mainLoop() {
+void VulkanRenderer::mainLoop() const {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
     }
 }
 
-void VulkanRenderer::cleanup() {
+bool VulkanRenderer::checkValidationLayerSupport() {
+    uint32_t layerCount;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    for (const char *layerName: validationLayers) {
+        bool layerFound = false;
+
+        for (const auto &layerProperties: availableLayers) {
+            if (strcmp(layerName, layerProperties.layerName) == 0) {
+                layerFound = true;
+                break;
+            }
+        }
+        if (!layerFound) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<const char *> VulkanRenderer::getRequiredVulkanExtensions() {
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    if (enableValidationLayers) {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+    return extensions;
+}
+
+void VulkanRenderer::cleanup() const {
     vkDestroyInstance(instance, nullptr);
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
+// ReSharper disable once CppRedundantBooleanExpressionArgument
 
-// ReSharper disable once CppDFAUnreachableFunctionCall (ReSharper lies to me)
 void VulkanRenderer::createInstance() {
+    if (enableValidationLayers && !checkValidationLayerSupport()) {
+        throw std::runtime_error("Validation layer requested, but not available!");
+    }
+
     uint32_t glfwExtensionCount = 0;
     const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -50,10 +101,20 @@ void VulkanRenderer::createInstance() {
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = glfwExtensionCount;
     createInfo.ppEnabledExtensionNames = glfwExtensions;
-    createInfo.enabledLayerCount = 0;
 
+    auto extensions = getRequiredVulkanExtensions();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
+
+    if (enableValidationLayers) {
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
+    } else {
+        createInfo.enabledLayerCount = 0;
+    }
+
+    /*
     uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
     std::vector<VkExtensionProperties> extensions(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
@@ -62,6 +123,7 @@ void VulkanRenderer::createInstance() {
     for (const auto &[extensionName, specVersion]: extensions) {
         std::println("{}", extensionName);
     }
+    */
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create vulkan instance!");
