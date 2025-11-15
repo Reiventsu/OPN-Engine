@@ -19,3 +19,5 @@ target_link_libraries( myownengine
     PRIVATE
         Renderer
 )
+
+add_dependencies(myownengine Shaders)

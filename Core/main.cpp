@@ -4,10 +4,8 @@
 #include "Renderer/VulkanRenderer.h"
 
 int main() {
-
-    VulkanRenderer app;
-
     try {
+        VulkanRenderer app;
         app.run();
     } catch ( const std::exception& e ) {
         std::cerr << e.what() << std::endl;

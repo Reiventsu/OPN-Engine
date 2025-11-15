@@ -3,6 +3,7 @@
 #include <cstring>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <vector>
 #include <print>
@@ -49,7 +50,7 @@ class VulkanRenderer {
         std::optional< uint32_t > graphicsFamily;
         std::optional< uint32_t > presentFamily;
 
-        bool isComplete() {
+        [[nodiscard]] bool isComplete() const {
             return graphicsFamily.has_value() &&
                    presentFamily.has_value();
         }
@@ -69,8 +70,12 @@ public:
 private:
 
     // Private methods
+
     void createInstance();
     void initWindow();
+
+    void createRenderPass();
+
     void initVulkan();
     void cleanup() const;
     void mainLoop() const;
@@ -82,11 +87,15 @@ private:
     void createImageViews();
     void createGraphicsPipeline();
 
+    VkShaderModule createShaderModule(const std::vector<char> &code);
+
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo);
     void setupDebugMessenger();
 
     QueueFamilyIndices findQueueFamilies( VkPhysicalDevice _device);
     SwapChainSupportDetails querySwapChainSupport( VkPhysicalDevice _device);
+
+    static std::vector<char> readFile( const std::string& _filename );
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
@@ -112,6 +121,7 @@ private:
 
     // Private members
 
+
     VkDebugUtilsMessengerEXT debugMessenger = nullptr;
 
     GLFWwindow               *window        = nullptr;
@@ -125,6 +135,10 @@ private:
     std::vector<VkImage>     swapChainImages;
     VkFormat                 swapChainImageFormat;
     VkExtent2D               swapChainExtent;
+
+    VkRenderPass             renderPass;
+    VkPipelineLayout         pipelineLayout;
+    VkPipeline               graphicsPipeline;
 
     std::vector<VkImageView> swapChainImageViews;
 
