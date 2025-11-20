@@ -14,4 +14,4 @@ target_link_libraries( Renderer
         glfw
 )
 
-target_include_directories( Renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
+target_include_directories( Renderer PUBLIC .)
