@@ -21,8 +21,13 @@ namespace opn {
      * @tparam Size The capacity of the queue. MUST be a power of two (e.g., 64, 1024).
      */
     template<typename T, size_t Size>
-    class SPSCQueue {
+    class RawSPSCQueue {
         static_assert(std::has_single_bit(Size), "Size must be a power of two for bitwise optimization.");
+
+        static_assert(std::is_nothrow_move_assignable_v<T>,
+            "T must have a noexcept assignment operator for safety.");
+        static_assert(std::is_nothrow_default_constructible_v<T>,
+            "T must have a noexcept assignment operator for safety.");
 
     public:
         /**
@@ -31,7 +36,7 @@ namespace opn {
          * Initializes the head and tail indices to 0.
          * This constructor is thread-safe only if called before the threads start using the queue.
          */
-        constexpr SPSCQueue()
+        constexpr RawSPSCQueue() noexcept
             : m_head(0), m_tail(0) {
         };
 
@@ -45,20 +50,22 @@ namespace opn {
          * @return true If the item was successfully added.
          * @return false If the queue is full.
          */
-        bool push(const T &_item) {
+        [[nodiscard]] bool push(const T &_item)
+            noexcept(std::is_nothrow_copy_assignable_v<T>) {
             return pushImpl(_item);
         }
 
         /**
-         * @brief Pushes an item into the queue (Move version).
-         *
-         * Thread Safety: PRODUCER thread ONLY.
-         *
-         * @param _item The item to move into the queue.
-         * @return true If the item was successfully added.
-         * @return false If the queue is full.
-         */
-        bool push(T &&_item) {
+        * @brief Pushes an item into the queue (Move version).
+        *
+        * Thread Safety: PRODUCER thread ONLY.
+        *
+        * @param _item The item to move into the queue.
+        * @return true If the item was successfully added.
+        * @return false If the queue is full.
+        */
+        [[nodiscard]] bool push(T &&_item)
+            noexcept(std::is_nothrow_move_assignable_v<T>) {
             return pushImpl(std::move(_item));
         }
 
@@ -71,7 +78,8 @@ namespace opn {
          * @return true If an item was successfully popped.
          * @return false If the queue was empty.
          */
-        [[nodiscard]] bool pop(T &_out_item) {
+        [[nodiscard]] bool pop(T &_out_item)
+            noexcept(std::is_nothrow_move_assignable_v<T>) {
             const auto currentTail = m_tail.load(std::memory_order_relaxed);
 
             if (currentTail == m_head.load(std::memory_order_acquire)) {
@@ -177,7 +185,7 @@ namespace opn {
          * Uses universal references to handle both copy and move without code duplication.
          */
         template<typename U>
-        bool pushImpl(U &&_item) {
+        bool pushImpl(U &&_item) noexcept(std::is_nothrow_assignable_v<T &, U &&>) {
             const auto currentHead = m_head.load(std::memory_order_relaxed);
             const auto nextHead = (currentHead + 1) & (Size - 1);
 
