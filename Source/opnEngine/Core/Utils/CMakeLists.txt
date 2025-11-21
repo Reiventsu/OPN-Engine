@@ -1,6 +1,7 @@
 add_library(CoreUtils INTERFACE
 
-        SPSCQueue.h
+        Thread/SPSCQueue.h
+        Thread/RawSPSCQueue.h
 )
 
 target_include_directories(CoreUtils INTERFACE .)
