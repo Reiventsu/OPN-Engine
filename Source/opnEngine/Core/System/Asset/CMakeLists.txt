@@ -1,0 +1,8 @@
+add_library(SystemAssets INTERFACE
+    iAsset.h
+    Vertex.h
+    Model.h
+        Texture.h
+)
+
+target_include_directories(SystemAssets INTERFACE .)
