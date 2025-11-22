@@ -12,21 +12,7 @@ namespace opn
 
         constexpr UUID() = default;
 
-        [[nodiscard]] bool operator==(const UUID& _other) const noexcept
-        {
-            return high == _other.high && low == _other.low;
-        }
-
-        [[nodiscard]] bool operator!=(const UUID& _other) const noexcept
-        {
-            return !(*this == _other);
-        }
-
-        [[nodiscard]] bool operator<(const UUID& _other) const noexcept
-        {
-            if (high != _other.high) return high < _other.high;
-            return (low < _other.low);
-        }
+        [[nodiscard]] constexpr auto operator<=>(const UUID&) const noexcept = default;
     };
 
     struct UUIDHasher
