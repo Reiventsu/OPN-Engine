@@ -3,7 +3,6 @@
 #include <new>
 #include <bit>
 
-// ABI safety
 #ifdef __cpp_lib_hardware_interference_size
 using std::hardware_destructive_interference_size;
 #else
@@ -21,13 +20,11 @@ namespace opn {
      * @tparam Size The capacity of the queue. MUST be a power of two (e.g., 64, 1024).
      */
     template<typename T, size_t Size>
-    class RawSPSCQueue {
-        static_assert(std::has_single_bit(Size), "Size must be a power of two for bitwise optimization.");
+    class SPSCQueue {
 
-        static_assert(std::is_nothrow_move_assignable_v<T>,
-            "T must have a noexcept assignment operator for safety.");
-        static_assert(std::is_nothrow_default_constructible_v<T>,
-            "T must have a noexcept assignment operator for safety.");
+        static_assert(std::has_single_bit(Size));
+        static_assert(std::is_nothrow_move_assignable_v<T>);
+        static_assert(std::is_nothrow_default_constructible_v<T>);
 
     public:
         /**
@@ -36,7 +33,7 @@ namespace opn {
          * Initializes the head and tail indices to 0.
          * This constructor is thread-safe only if called before the threads start using the queue.
          */
-        constexpr RawSPSCQueue() noexcept
+        constexpr SPSCQueue() noexcept
             : m_head(0), m_tail(0) {
         };
 
