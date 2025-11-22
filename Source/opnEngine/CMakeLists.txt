@@ -1,14 +1,18 @@
-add_subdirectory(Core/Utils)
-add_subdirectory(Core/Renderer)
-add_subdirectory(Core/Shaders)
+add_subdirectory(Core)
 
 add_executable(OPN_Engine
         Standalone/main.cpp)
 
 target_link_libraries(OPN_Engine
     PRIVATE
-        Renderer   # Your Renderer lib
-        CoreUtils  # Your new RingBuffer lib
+        Renderer
+        CoreUtils
+)
+
+target_include_directories(OPN_Engine
+    PUBLIC
+        Core
+        Modules
 )
 
 add_dependencies(OPN_Engine Shaders)
