@@ -1,30 +1,26 @@
 #pragma once
+
 #include <cstdint>
 #include <functional>
 #include <random>
 
-namespace opn
-{
-    struct UUID
-    {
+namespace opn {
+    struct UUID {
         uint64_t high = 0;
         uint64_t low = 0;
 
         constexpr UUID() = default;
 
-        [[nodiscard]] constexpr auto operator<=>(const UUID&) const noexcept = default;
+        [[nodiscard]] constexpr auto operator<=>(const UUID &) const noexcept = default;
     };
 
-    struct UUIDHasher
-    {
-        std::size_t operator()(const UUID& _uuid) const noexcept
-        {
+    struct UUIDHasher {
+        std::size_t operator()(const UUID &_uuid) const noexcept {
             return std::hash<uint64_t>{}(_uuid.high) ^ (std::hash<uint64_t>{}(_uuid.low) << 1);
         }
     };
 
-    inline UUID generateUUID() noexcept
-    {
+    inline UUID generateUUID() noexcept {
         static std::random_device rd;
         static std::mt19937 gen(rd());
         static std::uniform_int_distribution<uint64_t> dist;
