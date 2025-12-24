@@ -12,12 +12,12 @@ export module opn.Utils.Logging;
 
 // Defines all forms of logging code will automatically
 // generate new levels if added to this X macro list.
-#define LOG_LEVELS                    \
-    X(Trace,    "TRACE", 0, false)    \
-    X(Debug,    "DEBUG", 1, false)    \
-    X(Info,     "INFO",  2, false)    \
-    X(Warning,  "WARN",  3, true)     \
-    X(Error,    "ERROR", 4, true)     \
+#define LOG_LEVELS                 \
+    X(Trace,    "TRACE", 0, false) \
+    X(Debug,    "DEBUG", 1, false) \
+    X(Info,     "INFO",  2, false) \
+    X(Warning,  "WARN",  3, true)  \
+    X(Error,    "ERROR", 4, true)  \
     X(Critical, "CRIT",  5, true)
 
 export namespace opn {
@@ -31,8 +31,9 @@ export namespace opn {
      * @class Logger
      * @brief A utility class for logging messages with various levels of severity.
      *
-     * @note When utilising a log feature 2 strings are expected.
-     * First one is a sort of identifier and second is the actual message.
+     * @note When employing a log feature, two strings are expected:
+     * the first serves as an identifier or context,
+     * and the second contains the actual message.
      */
     class Logger {
     public:
