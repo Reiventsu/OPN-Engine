@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 4.2.1)
 
-# C++23 Plugins support
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 set(CMAKE_CXX_STANDARD 23)
