@@ -1,7 +1,10 @@
-#pragma once
+module;
+
 #include <atomic>
 #include <new>
 #include <bit>
+
+export module opn.utils.Thread.SPSCQueue;
 
 #ifdef __cpp_lib_hardware_interference_size
 using std::hardware_destructive_interference_size;
@@ -9,7 +12,7 @@ using std::hardware_destructive_interference_size;
 constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
-namespace opn {
+export namespace opn {
     /**
      * @brief A high-performance, lock-free, Single-Producer Single-Consumer (SPSC) Ring Buffer.
      *

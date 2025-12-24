@@ -1,9 +1,12 @@
-#pragma once
+module;
+
 #include <cstdint>
 #include <functional>
 #include <random>
 
-namespace opn
+export module opn.system.UUID;
+
+export namespace opn
 {
     struct UUID
     {
@@ -40,5 +43,5 @@ namespace opn
         uuid.low |= 0x8000000000000000ULL;
 
         return uuid;
-    };
+    }
 }

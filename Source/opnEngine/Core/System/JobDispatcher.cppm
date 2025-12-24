@@ -1,13 +1,15 @@
-#pragma once
+module;
 
 #include <functional>
 #include <atomic>
 #include <thread>
 #include <utility>
 
-#include "Thread/SPSCQueue.h"
+export module opn.system.JobDispatcher;
 
-namespace opn
+import opn.utils.Thread.SPSCQueue;
+
+export namespace opn
 {
     enum class eJobType
     {
@@ -30,12 +32,17 @@ namespace opn
      */
     class JobDispatcher
     {
+        // private members
+        inline static std::atomic_bool m_initialized{false};
         static constexpr size_t MAX_FENCES = 4096;
         static constexpr size_t QUEUE_SIZE = 1024;
 
     public:
         static void initialize()
         {
+            if (m_initialized.exchange(true))
+                throw std::runtime_error("JobDispatcher already initialized!");
+
             for (auto& f : s_fencePool)
             {
                 f.store(0, std::memory_order_release);
