@@ -1,5 +1,5 @@
 add_library(CoreUtils
-        Logging.cppm)
+        Logger.cppm)
 
 target_sources(CoreUtils
     PUBLIC

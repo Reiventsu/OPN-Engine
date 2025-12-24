@@ -38,7 +38,7 @@ export namespace opn
         static constexpr size_t QUEUE_SIZE = 1024;
 
     public:
-        static void initialize()
+        static void init()
         {
             if (m_initialized.exchange(true))
                 throw std::runtime_error("JobDispatcher already initialized!");
