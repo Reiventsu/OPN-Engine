@@ -5,4 +5,5 @@ add_library(SystemAssets INTERFACE
         Texture.h
 )
 
+target_link_libraries(SystemAssets INTERFACE CoreSystems)
 target_include_directories(SystemAssets INTERFACE .)

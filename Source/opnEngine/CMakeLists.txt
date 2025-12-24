@@ -5,14 +5,15 @@ add_executable(OPN_Engine
 
 target_link_libraries(OPN_Engine
     PRIVATE
-        Renderer
+#        Renderer
         CoreUtils
+        CoreSystems
 )
 
 target_include_directories(OPN_Engine
     PUBLIC
         Core
-        Modules
+        Plugins
 )
 
 add_dependencies(OPN_Engine Shaders)
