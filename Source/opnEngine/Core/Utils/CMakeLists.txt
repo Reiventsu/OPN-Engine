@@ -1,9 +1,9 @@
-add_library(CoreUtils
-        Logger.cppm)
+add_library(CoreUtils)
 
 target_sources(CoreUtils
     PUBLIC
     FILE_SET CXX_MODULES FILES
+        Logger.cppm
         Thread/SPSCQueue.cppm
         Thread/RawSPSCQueue.cppm
 )

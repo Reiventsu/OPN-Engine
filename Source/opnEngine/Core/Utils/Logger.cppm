@@ -4,32 +4,41 @@ module;
 #include <chrono>
 #include <format>
 #include <iostream>
+#include <mutex>
 #include <source_location>
 #include <string_view>
 
 export module opn.Utils.Logging;
 
+// Defines all forms of logging code will automatically
+// generate new levels if added to this X macro list.
+#define LOG_LEVELS                    \
+    X(Trace,    "TRACE", 0, false)    \
+    X(Debug,    "DEBUG", 1, false)    \
+    X(Info,     "INFO",  2, false)    \
+    X(Warning,  "WARN",  3, true)     \
+    X(Error,    "ERROR", 4, true)     \
+    X(Critical, "CRIT",  5, true)
+
 export namespace opn {
     enum class eLogLevel : int8_t {
-        Trace = 0,
-        Debug,
-        Info,
-        Warn,
-        Error,
-        Critical,
+#define X(name, str, val, showLoc) name = val,
+        LOG_LEVELS
+#undef X
     };
 
     class Logger {
-        inline static std::mutex log_mutex;
-        inline static std::atomic_int8_t min_level = {
-#ifdef NDEBUG
-            static_cast<int8_t>(eLogLevel::Info)
-#else
-            static_cast<int8_t>(eLogLevel::Debug)
-#endif
+    public:
+        struct Context {
+            std::string_view category;
+            std::source_location location;
+
+            Context(const char* _category, std::source_location _location = std::source_location::current())
+                : category(_category), location(_location) {}
+            Context(std::string_view _category, std::source_location _location = std::source_location::current())
+                : category(_category), location(_location) {}
         };
 
-    public:
         static void setLevel(const eLogLevel &_level) noexcept {
             min_level.store(static_cast<int8_t>(_level), std::memory_order_relaxed);
         }
@@ -41,84 +50,86 @@ export namespace opn {
         template<typename... Args>
         static void log(eLogLevel _level,
                         std::string_view _category,
+                        const std::source_location &_loc,
                         std::format_string<Args...> _fmt,
                         Args &&... _args
-#ifndef NDEBUG
-                        , const std::source_location &_loc = std::source_location::current()
-#endif
         ) {
             if (static_cast<int8_t>(_level) < min_level.load(std::memory_order_relaxed))
                 return;
 
-            std::lock_guard lock(log_mutex);
             std::string message = std::format(_fmt, std::forward<Args>(_args)...);
 
             const auto now = std::chrono::system_clock::now();
-            auto time = std::chrono::system_clock::to_time_t(now);
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                          now.time_since_epoch()).count() % 1000;
+            const auto now_seconds = std::chrono::floor<std::chrono::seconds>(now);
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count();
 
+            std::lock_guard lock(log_mutex);
 #ifdef NDEBUG
-            std::println(std::cerr, "[{:%H:%M:%S}.{%03d}] [{}] [{}] {}",
-                         std::chrono::system_clock::to_time_t(time),
-                         ms,
-                         levelToString(_level),
-                         _category,
-                         message
+            std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {}",
+                         now_seconds, ms, levelToString(_level), _category, message
             );
 #else
-            std::string_view filename = _loc.file_name();
-            if (const auto pos = filename.find_last_of('/\\'); pos != std::string_view::npos) {
-                filename = filename.substr(pos + 1);
+            bool shouldShowLoc = false;
+            switch (_level) {
+#define X(name, str, val, showLoc) case eLogLevel::name: shouldShowLoc = showLoc; break;
+                LOG_LEVELS
+#undef X
             }
 
-            std::println(std::cerr, "[{:%H:%M:%S}.{%03d}] [{}] [{}] {} ({}:{})",
-                         std::chrono::system_clock::from_time_t(time),
-                         ms,
-                         levelToString(_level),
-                         _category,
-                         message,
-                         filename,
-                         _loc.line()
-            );
+            if (shouldShowLoc) {
+                std::string_view filename = _loc.file_name();
+                if (const auto pos = filename.find_last_of("/\\"); pos != std::string_view::npos) {
+                    filename = filename.substr(pos + 1);
+                }
+
+                std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {} ({}:{})",
+                             now_seconds, ms, levelToString(_level), _category, message, filename, _loc.line()
+                );
+            } else {
+                std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {}",
+                             now_seconds, ms, levelToString(_level), _category, message
+                );
+            }
 #endif
-        }
-
-        // Convenience
-        template<typename... Args>
-        static void trace(std::string_view category, std::format_string<Args...> fmt, Args &&... args,
-                          const std::source_location &loc = std::source_location::current()
-        ) {
-            log(eLogLevel::Trace, category, fmt, std::forward<Args>(args)..., loc);
-        }
-
-        template<typename... Args>
-        static void debug(std::string_view category, std::format_string<Args...> fmt, Args &&... args,
-                          const std::source_location &loc = std::source_location::current()
-        ) {
-            log(eLogLevel::Debug, category, fmt, std::forward<Args>(args)..., loc);
         }
 
     private:
+        inline static std::mutex log_mutex;
+        inline static std::atomic_int8_t min_level = {
+#ifdef NDEBUG
+            static_cast<int8_t>(eLogLevel::Info)
+#else
+            static_cast<int8_t>(eLogLevel::Debug)
+#endif
+        };
+
         static std::string_view levelToString(const eLogLevel _level) noexcept {
             switch (_level) {
-                case eLogLevel::Trace:    return "TRACE";
-                case eLogLevel::Debug:    return "DEBUG";
-                case eLogLevel::Info:     return "INFO";
-                case eLogLevel::Warn:     return "WARN";
-                case eLogLevel::Error:    return "ERROR";
-                case eLogLevel::Critical: return "CRITICAL";
-                default:                  return "UNKNOWN";
+#define X(name, str, val, showLoc) case eLogLevel::name: return str;
+                LOG_LEVELS
+#undef X
+                default: return "UNKNOWN";
             }
         }
     };
-
-    // MACROS
-#ifdef NDEBUG
-#define OPN_LOG_TRACE(category, fmt, ...) ((void)0)
-#define OPN_LOG_DEBUG(category, fmt, ...) ((void)0)
-#else
-#define OPN_LOG_TRACE(category, ...) Logger::trace(category, __VA_ARGS__)
-#define OPN_LOG_DEBUG(category, ...) Logger::debug(category, __VA_ARGS__)
-#endif
 }
+
+// MACROS
+#define OPN_GENERATE_LOG_FUNC(name, level)                        \
+    export namespace opn {                                        \
+        template<typename... Args>                                \
+        inline void log##name(Logger::Context _ctx,               \
+                              std::format_string<Args...> _fmt,   \
+                              Args&&... _args) {                  \
+                              Logger::log(                        \
+                                 eLogLevel::level, _ctx.category, \
+                                 _ctx.location,                   \
+                                 _fmt,                            \
+                                 std::forward<Args>(_args)...     \
+                              );                                  \
+        }                                                         \
+    }
+
+#define X(name, str, val, showLoc) OPN_GENERATE_LOG_FUNC(name, name)
+LOG_LEVELS
+#undef X

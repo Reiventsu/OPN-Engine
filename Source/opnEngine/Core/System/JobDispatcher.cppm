@@ -8,6 +8,7 @@ module;
 export module opn.system.JobDispatcher;
 
 import opn.utils.Thread.SPSCQueue;
+import opn.Utils.Logging;
 
 export namespace opn {
     enum class eJobType {
@@ -41,6 +42,8 @@ export namespace opn {
             for (auto &f: s_fencePool) {
                 f.store(0, std::memory_order_release);
             }
+            logInfo("System", "Job Dispatching system initialized successfully.");
+
         }
 
         template<typename Func, typename... Args>

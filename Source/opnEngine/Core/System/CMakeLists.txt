@@ -9,6 +9,4 @@ target_sources(CoreSystems
 
 target_link_libraries(CoreSystems PUBLIC CoreUtils)
 
-add_subdirectory(Asset)
-
 target_include_directories(CoreSystems PUBLIC .)

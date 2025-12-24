@@ -1,13 +1,13 @@
 #include <iostream>
-#include <ostream>
-#include <stacktrace>
+#include <exception>
 
+import opn.system.JobDispatcher;
 
 int main() {
-
     try {
-    } catch ( const std::exception& e ) {
-        std::cerr << e.what() << std::endl;
+        opn::JobDispatcher::init();
+    } catch (const std::exception &e) {
+        std::println(std::cerr, "Exception caught: {}\n...TERMINATING...", e.what());
         return EXIT_FAILURE;
     }
 
