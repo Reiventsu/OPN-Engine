@@ -27,15 +27,22 @@ export namespace opn {
 #undef X
     };
 
+    /**
+     * @class Logger
+     * @brief A utility class for logging messages with various levels of severity.
+     *
+     * @note When utilising a log feature 2 strings are expected.
+     * First one is a sort of identifier and second is the actual message.
+     */
     class Logger {
     public:
         struct Context {
             std::string_view category;
             std::source_location location;
 
-            Context(const char* _category, std::source_location _location = std::source_location::current())
+            Context(const char* _category, const std::source_location _location = std::source_location::current())
                 : category(_category), location(_location) {}
-            Context(std::string_view _category, std::source_location _location = std::source_location::current())
+            Context(const std::string_view _category, const std::source_location _location = std::source_location::current())
                 : category(_category), location(_location) {}
         };
 

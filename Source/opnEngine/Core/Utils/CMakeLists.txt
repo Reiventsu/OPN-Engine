@@ -4,8 +4,6 @@ target_sources(CoreUtils
     PUBLIC
     FILE_SET CXX_MODULES FILES
         Logger.cppm
-        Thread/SPSCQueue.cppm
-        Thread/RawSPSCQueue.cppm
         Exceptions/Except_MultipleInit.cppm
 )
 

@@ -5,6 +5,8 @@ target_sources(CoreSystems
     FILE_SET CXX_MODULES FILES
         JobDispatcher.cppm
         UUID.cppm
+        Thread/RawSPSCQueue.cppm
+        Thread/SPSCQueue.cppm
 )
 
 target_link_libraries(CoreSystems PUBLIC CoreUtils)
