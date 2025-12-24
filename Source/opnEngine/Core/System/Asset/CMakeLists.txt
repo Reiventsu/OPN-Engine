@@ -3,6 +3,7 @@ add_library(SystemAssets INTERFACE
     Vertex.h
     Model.h
         Texture.h
+        AssetSystem.h
 )
 
 target_link_libraries(SystemAssets INTERFACE CoreSystems)
