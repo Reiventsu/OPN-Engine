@@ -61,7 +61,7 @@ export namespace opn
             std::lock_guard lock(log_mutex);
             std::string message = std::format(_fmt, std::forward<Args>(_args)...);
 
-            auto now = std::chrono::system_clock::now();
+            const auto now = std::chrono::system_clock::now();
             auto time = std::chrono::system_clock::to_time_t(now);
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now.time_since_epoch()).count() % 1000;
@@ -125,4 +125,14 @@ export namespace opn
             }
         }
     };
+
+// MACROS
+#ifdef NDEBUG
+#define OPN_LOG_TRACE(category, fmt, ...) ((void)0)
+#define OPN_LOG_DEBUG(category, fmt, ...) ((void)0)
+#else
+#define OPN_LOG_TRACE(category, ...) Logger::trace(category, __VA_ARGS__)
+#define OPN_LOG_DEBUG(category, ...) Logger::debug(category, __VA_ARGS__)
+#endif
+
 }
