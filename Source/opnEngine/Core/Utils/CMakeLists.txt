@@ -6,6 +6,7 @@ target_sources(CoreUtils
         Logger.cppm
         Thread/SPSCQueue.cppm
         Thread/RawSPSCQueue.cppm
+        Exceptions/Except_MultipleInit.cppm
 )
 
 target_include_directories(CoreUtils PUBLIC .)

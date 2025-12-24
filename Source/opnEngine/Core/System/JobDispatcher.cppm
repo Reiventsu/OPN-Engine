@@ -2,6 +2,7 @@ module;
 
 #include <functional>
 #include <atomic>
+#include <source_location>
 #include <thread>
 #include <utility>
 
@@ -9,6 +10,7 @@ export module opn.system.JobDispatcher;
 
 import opn.utils.Thread.SPSCQueue;
 import opn.Utils.Logging;
+import opn.Utils.Exceptions;
 
 export namespace opn {
     enum class eJobType {
@@ -30,20 +32,19 @@ export namespace opn {
      */
     class JobDispatcher {
         // private members
-        inline static std::atomic_bool m_initialized{false};
+        inline static std::atomic_bool initialized{false};
         static constexpr size_t MAX_FENCES = 4096;
         static constexpr size_t QUEUE_SIZE = 1024;
 
     public:
-        static void init() {
-            if (m_initialized.exchange(true))
-                throw std::runtime_error("JobDispatcher already initialized!");
+        static void init(const std::source_location loc = std::source_location::current()) {
+            if (initialized.exchange(true))
+                throw MultipleInit_Exception("JobDispatcher", loc);
 
             for (auto &f: s_fencePool) {
                 f.store(0, std::memory_order_release);
             }
             logInfo("System", "Job Dispatching system initialized successfully.");
-
         }
 
         template<typename Func, typename... Args>
@@ -70,9 +71,11 @@ export namespace opn {
                     break;
             }
             if (!success) {
+                opn::logError("JobDispatcher: Submit", "Failed to submit job.");
                 s_fencePool[fenceID].store(0, std::memory_order_release);
                 return 0;
             }
+            opn::logTrace("JobDispatcher: Submit", "Task submitted successfully with ID: {}", fenceID);
             return fenceID;
         }
 
