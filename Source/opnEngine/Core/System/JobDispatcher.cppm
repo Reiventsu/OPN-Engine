@@ -6,9 +6,9 @@ module;
 #include <thread>
 #include <utility>
 
-export module opn.system.JobDispatcher;
+export module opn.System.JobDispatcher;
 
-import opn.utils.Thread.SPSCQueue;
+import opn.System.Thread.SPSCQueue;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
