@@ -4,6 +4,7 @@ target_sources(CoreUtils
     PUBLIC
     FILE_SET CXX_MODULES FILES
         Logger.cppm
+        iSingleton.cppm
         Exceptions/Except_MultipleInit.cppm
 )
 
