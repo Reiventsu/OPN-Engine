@@ -4,7 +4,7 @@ module;
 #include <new>
 #include <bit>
 
-export module opn.utils.Thread.SPSCQueue;
+export module opn.System.Thread.SPSCQueue;
 
 #ifdef __cpp_lib_hardware_interference_size
 using std::hardware_destructive_interference_size;

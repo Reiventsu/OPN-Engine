@@ -3,9 +3,9 @@ module;
 #include <atomic>
 #include <new>
 #include <bit>
-#include <cstddef> // for std::byte
+#include <cstddef>
 
-export module opn.utils.Thread.RawSPSCQueue;
+export module opn.System.Thread.RawSPSCQueue;
 
 // ABI safety
 #ifdef __cpp_lib_hardware_interference_size
