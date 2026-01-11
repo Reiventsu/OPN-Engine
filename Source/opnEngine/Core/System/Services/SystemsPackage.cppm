@@ -1,0 +1,8 @@
+// A simple re-exporter of service systems
+// making it easier to include all systems.
+
+export module opn.System.Services;
+import opn.System.iService;
+
+export import opn.System.Service.AssetSystem;
+export import opn.System.Service.TestSystem;

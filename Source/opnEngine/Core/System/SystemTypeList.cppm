@@ -11,7 +11,7 @@ export namespace opn {
             return (std::is_same_v<T, Types> || ...);
         };
 
-        static constexpr size_t size() {
+        static constexpr std::size_t size() {
             return sizeof...(Types);
         }
 

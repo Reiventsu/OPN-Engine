@@ -7,6 +7,7 @@ target_link_libraries(OPN_Engine
     PRIVATE
         CoreUtils
         CoreSystems
+        Services
 )
 
 target_include_directories(OPN_Engine

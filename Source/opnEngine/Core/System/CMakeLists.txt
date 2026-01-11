@@ -4,13 +4,15 @@ target_sources(CoreSystems
     PUBLIC
     FILE_SET CXX_MODULES FILES
         JobDispatcher.cppm
-        SystemsManager.cppm
+        ServiceManager.cppm
         SystemTypeList.cppm
-        Asset/AssetSystem.cppm
+        iService.cppm
         UUID.cppm
         Thread/RawSPSCQueue.cppm
         Thread/SPSCQueue.cppm
 )
+
+add_subdirectory(Services)
 
 target_link_libraries(CoreSystems PUBLIC CoreUtils)
 

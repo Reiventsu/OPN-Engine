@@ -44,11 +44,27 @@ export namespace opn {
             for (auto &f: s_fencePool) {
                 f.store(0, std::memory_order_release);
             }
-            logInfo("System", "Job Dispatching system initialized successfully.");
+            logInfo("JobDispatcher", "Job Dispatching service initialized successfully.");
+        }
+
+        static void shutdown() {
+            if (!initialized.exchange(false)) {
+                logWarning("JobDispatcher", "Shutdown called, but it wasn't initialized.");
+                return;
+            }
+
+            s_nextFenceID.store(0);
+            
+            logInfo("JobDispatcher", "Job Dispatching service shut down successfully.");
         }
 
         template<typename Func, typename... Args>
         static uint32_t Submit(const eJobType _type, Func &&_func, Args &&... _args) {
+            if (!initialized.load(std::memory_order_acquire)) {
+                opn::logError("JobDispatcher: Submit", "Attempted to submit job, but dispatcher is NOT initialized.");
+                return 0;
+            }
+
             const uint32_t fenceID = s_nextFenceID.fetch_add(1) % MAX_FENCES;
             s_fencePool[fenceID].store(1, std::memory_order_release);
 
