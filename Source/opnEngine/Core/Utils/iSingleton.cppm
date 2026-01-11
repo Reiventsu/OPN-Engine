@@ -5,6 +5,8 @@ module;
 #include <source_location>
 #include <string_view>
 
+/// AS OF CURRENT DEPRECATED UNTIL FURTHER NOTICE ////
+
 export module opn.Utils.Singleton;
 import opn.Utils.Exceptions;
 import opn.Utils.Logging;
