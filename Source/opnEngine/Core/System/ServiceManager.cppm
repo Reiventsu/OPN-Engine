@@ -3,8 +3,10 @@ module;
 #include <memory>
 #include <ranges>
 #include <source_location>
+#include <stdexcept>
 #include <typeindex>
-#include <oneapi/tbb/detail/_utils.h>
+#include <unordered_map>
+#include <vector>
 
 export module opn.System.ServiceManager;
 import opn.System.SystemTypeList;

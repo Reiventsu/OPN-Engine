@@ -8,12 +8,9 @@ target_sources(CoreSystems
         SystemTypeList.cppm
         iService.cppm
         UUID.cppm
-        Thread/RawSPSCQueue.cppm
-        Thread/SPSCQueue.cppm
 )
 
+target_link_libraries(CoreSystems PUBLIC EngineUtils Thread)
+
 add_subdirectory(Services)
-
-target_link_libraries(CoreSystems PUBLIC CoreUtils)
-
-target_include_directories(CoreSystems PUBLIC .)
+add_subdirectory(Thread)

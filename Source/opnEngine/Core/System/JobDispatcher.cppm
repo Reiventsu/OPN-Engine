@@ -1,5 +1,6 @@
 module;
 
+#include <array>
 #include <functional>
 #include <atomic>
 #include <source_location>

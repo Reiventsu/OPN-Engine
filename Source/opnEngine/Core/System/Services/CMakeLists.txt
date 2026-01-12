@@ -8,4 +8,4 @@ target_sources(Services
         TestSystem.cppm
 )
 
-target_link_libraries(Services PUBLIC CoreSystems)
+target_link_libraries(Services PUBLIC CoreSystems EngineUtils)
