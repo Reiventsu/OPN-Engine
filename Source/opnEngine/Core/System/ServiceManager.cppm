@@ -11,7 +11,7 @@ module;
 
 export module opn.System.ServiceManager;
 import opn.System.SystemTypeList;
-import opn.System.iService;
+import opn.System.ServiceInterface;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 

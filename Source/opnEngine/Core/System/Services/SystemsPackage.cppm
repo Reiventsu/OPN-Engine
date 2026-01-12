@@ -2,7 +2,7 @@
 // making it easier to include all systems.
 
 export module opn.System.Services;
-import opn.System.iService;
+import opn.System.ServiceInterface;
 
 export import opn.System.Service.AssetSystem;
 export import opn.System.Service.TestSystem;

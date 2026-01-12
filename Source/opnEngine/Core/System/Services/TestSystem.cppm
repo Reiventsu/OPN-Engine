@@ -1,12 +1,12 @@
 export module opn.System.Service.TestSystem;
-import opn.System.iService;
+import opn.System.ServiceInterface;
 
 namespace opn {
-    export class TestSystem : public iService {
+    export class TestSystem : public Service<TestSystem> {
     public:
         TestSystem() = default;
         
-        void init() override {}
-        void shutdown() override {}
+        void onInit() override {}
+        void onShutdown() override {}
     };
 }
