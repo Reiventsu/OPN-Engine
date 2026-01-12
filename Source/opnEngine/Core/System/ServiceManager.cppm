@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <ranges>
 #include <source_location>

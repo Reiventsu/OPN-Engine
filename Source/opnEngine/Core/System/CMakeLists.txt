@@ -10,7 +10,7 @@ target_sources(CoreSystems
         UUID.cppm
 )
 
-target_link_libraries(CoreSystems PUBLIC EngineUtils Thread)
+target_link_libraries(CoreSystems PUBLIC CoreUtils Thread)
 
 add_subdirectory(Services)
 add_subdirectory(Thread)

@@ -7,4 +7,4 @@ target_sources(Thread
         RawSPSCQueue.cppm
 )
 
-target_link_libraries(Thread PUBLIC EngineUtils)
+target_link_libraries(Thread PUBLIC CoreUtils)
