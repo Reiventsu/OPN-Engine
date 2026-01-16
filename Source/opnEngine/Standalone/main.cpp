@@ -10,8 +10,8 @@ import opn.System.Services;
 import opn.Utils.Logging;
 
 using AppServices = opn::SystemTypeList<
-    opn::AssetSystem,
-    opn::TestSystem
+    opn::Time,
+    opn::AssetSystem
 >;
 
 using ServiceManager = opn::ServiceManager_Impl<AppServices>;

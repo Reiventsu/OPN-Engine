@@ -33,9 +33,11 @@ namespace opn {
         [[nodiscard]] static CommandAssetLoad load(std::string path) { return CommandAssetLoad{std::move(path)}; }
         [[nodiscard]] static CommandAssetUnload unload(std::string path) { return CommandAssetUnload{std::move(path)}; }
 
+        /*
         AssetSystem() = default;
 
         ~AssetSystem() override { AssetSystem::shutdown(); }
+        */
 
         void onInit() override {
             const auto threadCount = std::max(1u, std::thread::hardware_concurrency() / 4);

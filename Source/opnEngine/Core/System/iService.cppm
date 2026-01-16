@@ -25,12 +25,12 @@ namespace opn {
         static T *getInstance() { return s_instance; }
         static bool isActive() { return s_instance != nullptr; }
 
-        void init() override final {
+        void init() final {
             s_instance = static_cast<T *>(this);
             onInit();
         }
 
-        void shutdown() override final {
+        void shutdown() final {
             if (s_instance == nullptr) return;
             onShutdown();
             s_instance = nullptr;

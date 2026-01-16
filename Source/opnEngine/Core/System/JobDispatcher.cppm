@@ -82,10 +82,10 @@ export namespace opn {
 
         // Templates defined below
         template<typename Command>
-        static sJobHandle submit(const eJobType _type, Command &&_command);
+        static sJobHandle submit(eJobType _type, Command &&_command);
 
         template<typename Command>
-        static sJobHandle submitAfter(uint32_t _dependencyFence, const eJobType _type, Command &&_command);
+        static sJobHandle submitAfter(uint32_t _dependencyFence, eJobType _type, Command &&_command);
 
         static bool isFenceSignaled(const uint32_t _fenceID) noexcept {
             return s_fencePool[_fenceID % MAX_FENCES].load(std::memory_order_acquire) == 0;
@@ -188,7 +188,6 @@ export namespace opn {
         newTask.fenceID = fenceID;
 
         using CmdType = std::decay_t<Command>;
-        // Explicitly move the lambda into move_only_function
         newTask.execute = [cmd = CmdType(std::forward<Command>(_command))]() mutable { cmd(); };
 
 
