@@ -11,6 +11,7 @@ import opn.Utils.Logging;
 
 using AppServices = opn::SystemTypeList<
     opn::Time,
+    opn::WindowSystem,
     opn::AssetSystem
 >;
 
@@ -24,32 +25,15 @@ int main() {
         ServiceManager::init();
         ServiceManager::registerServices();
 
-        opn::logInfo("Main", "Application started successfully.");
-        opn::logInfo("Main", "Engine running with {} services.", ServiceManager::getServiceCount());
+        auto &time = ServiceManager::getService<opn::Time>();
+        auto &window = ServiceManager::getService<opn::WindowSystem>();
 
-        //// EXAMPLE BEGIN
+        while (!window.shouldClose()) {
+            window.pollEvents();
 
-        auto modelHandle = opn::JobDispatcher::submit(
-            opn::eJobType::Asset,
-            opn::AssetSystem::load("models/hero.gltf")
-        );
-
-        auto textureHandle = modelHandle.then(
-            opn::eJobType::Asset,
-            opn::AssetSystem::load("textures/mech_diffuse.png")
-        );
-
-        opn::logInfo("Main", "Main thread doing other work while assets load...");
-        for (int i = 0; i < 3; ++i) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            opn::logTrace("Main", "Frame update...");
+            const auto dt = static_cast<float>(time.getDeltaTime());
+            ServiceManager::updateAll(dt);
         }
-        opn::logInfo("Main", "Waiting for Entity Spawn to complete...");
-        textureHandle.wait();
-
-        //// EXAMPLE END
-
-        //// Shutdown
 
         opn::logInfo("Main", "Engine Shutting down.");
         ServiceManager::shutdown();

@@ -9,4 +9,9 @@ target_sources(Services
         Time.cppm
 )
 
-target_link_libraries(Services PUBLIC CoreSystems CoreUtils)
+target_link_libraries(Services
+        PUBLIC
+        CoreSystems
+        CoreUtils
+        glfw
+)

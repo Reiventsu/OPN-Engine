@@ -16,17 +16,18 @@ export namespace opn {
 
         static std::atomic_bool s_initialized;
 
-        TimePoint m_startTime{};
-        TimePoint m_lastFrameTime{};
+        mutable TimePoint m_startTime{};
+        mutable TimePoint m_lastFrameTime{};
 
-        double m_deltaTimeReal{0.0};
-        double m_deltaTimeGame{0.0};
-        double m_timeScale{0.0};
-        bool m_paused{false};
+        mutable double m_deltaTimeReal{0.0};
+        mutable double m_deltaTimeGame{0.0};
+        mutable double m_timeScale{0.0};
 
-        double m_physicsRate{60.0};
-        double m_fixedDeltaTime{1.0 / 60.0};
-        double m_accumulator{0.0};
+        mutable bool m_paused{false};
+
+        mutable double m_physicsRate{60.0};
+        mutable double m_fixedDeltaTime{1.0 / 60.0};
+        mutable double m_accumulator{0.0};
 
     protected:
         void onInit() override {
@@ -41,7 +42,7 @@ export namespace opn {
         }
 
     public:
-        void update() {
+        void update() const {
             const auto currentTime = Clock::now();
             m_deltaTimeReal = std::chrono::duration<double>(currentTime - m_lastFrameTime).count();
             m_lastFrameTime = currentTime;
@@ -51,7 +52,7 @@ export namespace opn {
             m_accumulator += m_deltaTimeGame;
         }
 
-        bool checkPhysicsStep() {
+        bool checkPhysicsStep() const {
             if (m_accumulator >= m_fixedDeltaTime) {
                 m_accumulator -= m_fixedDeltaTime;
                 return true;
@@ -67,10 +68,10 @@ export namespace opn {
             return m_accumulator / m_fixedDeltaTime;
         }
 
-        void setPaused(const bool _paused) { m_paused = _paused; }
-        void setTimeScale(const double _scale) { m_timeScale = _scale; }
+        void setPaused(const bool _paused) const { m_paused = _paused; }
+        void setTimeScale(const double _scale) const { m_timeScale = _scale; }
 
-        void setPhysicsRate(const double _hz) {
+        void setPhysicsRate(const double _hz) const {
             m_physicsRate = _hz;
             m_fixedDeltaTime = 1.0 / _hz;
         }

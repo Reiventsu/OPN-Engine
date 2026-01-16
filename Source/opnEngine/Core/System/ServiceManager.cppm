@@ -17,10 +17,13 @@ import opn.Utils.Exceptions;
 
 export namespace opn {
     template<typename ServiceList>
-    class ServiceManager_Impl{
+    class ServiceManager_Impl {
         struct iServiceHolder {
             virtual ~iServiceHolder() = default;
+
             virtual void shutdown() = 0;
+
+            virtual void update(float _deltaTime) = 0;
         };
 
         template<IsService T>
@@ -42,6 +45,11 @@ export namespace opn {
                     opn::logTrace("ServiceManager", "Shutting down service holder...");
                     service->shutdown();
                 }
+            }
+
+            void update(float _deltaTime) override {
+                if (service)
+                    service->update(_deltaTime);
             }
 
             T &get() { return *service; }
@@ -77,6 +85,20 @@ export namespace opn {
             opn::logInfo("ServiceManager", "All services shutdown successfully.");
         }
 
+        static void updateAll(const float _deltaTime) {
+            if (!initialized.load(std::memory_order_acquire)) {
+                opn::logWarning("ServiceManager", "Update called, but ServiceManager wasn't initialized.");
+                return;
+            }
+
+            for (const auto &typeIndex: initOrder) {
+                auto itr = services.find(typeIndex);
+                if (itr != services.end()) {
+                    itr->second->update(_deltaTime);
+                }
+            }
+        }
+
         template<IsService T>
         static T &registerService() {
             static_assert(ServiceList::template contains<T>(),
@@ -93,7 +115,7 @@ export namespace opn {
 
             opn::logInfo("ServiceManager", "Registering new service...");
 
-            auto holder = std::make_unique<ServiceHolder<T>>();
+            auto holder = std::make_unique<ServiceHolder<T> >();
             holder->init();
 
             T &serviceRef = holder->get();
@@ -143,7 +165,7 @@ export namespace opn {
         }
 
         template<IsService T>
-        [[nodiscard]] static std::optional<std::reference_wrapper<const T>> tryGetService() noexcept {
+        [[nodiscard]] static std::optional<std::reference_wrapper<const T> > tryGetService() noexcept {
             if (!isRegistered<T>()) {
                 return std::nullopt;
             }
@@ -169,18 +191,18 @@ export namespace opn {
             opn::logInfo("ServiceManager", "All services registered successfully.");
         }
 
-        private:
-            friend class JobDispatcher;
+    private:
+        friend class JobDispatcher;
 
-            template<IsService T>
-            static T &getServiceInternal() {
-                auto itr = services.find(typeid(T));
-                auto *holder = static_cast<ServiceHolder<T> *>(itr->second.get());
-                return holder->get();
-            }
+        template<IsService T>
+        static T &getServiceInternal() {
+            auto itr = services.find(typeid(T));
+            auto *holder = static_cast<ServiceHolder<T> *>(itr->second.get());
+            return holder->get();
+        }
 
-            inline static std::atomic_bool initialized{false};
-            inline static std::unordered_map<std::type_index, std::unique_ptr<iServiceHolder>> services;
-            inline static std::vector<std::type_index> initOrder;
-        };
-    } // namespace opn
+        inline static std::atomic_bool initialized{false};
+        inline static std::unordered_map<std::type_index, std::unique_ptr<iServiceHolder> > services;
+        inline static std::vector<std::type_index> initOrder;
+    };
+} // namespace opn

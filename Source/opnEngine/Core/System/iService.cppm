@@ -14,6 +14,9 @@ namespace opn {
         virtual void init() = 0;
 
         virtual void shutdown() = 0;
+
+        virtual void update(float _deltaTime) {
+        }
     };
 
     export template<typename T>
@@ -36,12 +39,18 @@ namespace opn {
             s_instance = nullptr;
         }
 
+        void update(const float _deltaTime) override {
+            onUpdate(_deltaTime);
+        }
+
     protected:
         Service() = default;
 
         virtual void onInit() = 0;
 
         virtual void onShutdown() = 0;
+
+        virtual void onUpdate(float _deltaTime) {};
 
     private:
         inline static T *s_instance = nullptr;
