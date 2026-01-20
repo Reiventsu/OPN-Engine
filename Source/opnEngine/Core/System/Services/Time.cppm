@@ -16,18 +16,18 @@ export namespace opn {
 
         static std::atomic_bool s_initialized;
 
-        mutable TimePoint m_startTime{};
-        mutable TimePoint m_lastFrameTime{};
+        TimePoint m_startTime{};
+        TimePoint m_lastFrameTime{};
 
-        mutable double m_deltaTimeReal{0.0};
-        mutable double m_deltaTimeGame{0.0};
-        mutable double m_timeScale{0.0};
+        double m_deltaTimeReal{0.0};
+        double m_deltaTimeGame{0.0};
+        double m_timeScale{0.0};
 
-        mutable bool m_paused{false};
+        bool m_paused{false};
 
-        mutable double m_physicsRate{60.0};
-        mutable double m_fixedDeltaTime{1.0 / 60.0};
-        mutable double m_accumulator{0.0};
+        double m_physicsRate{60.0};
+        double m_fixedDeltaTime{1.0 / 60.0};
+        double m_accumulator{0.0};
 
     protected:
         void onInit() override {
@@ -42,7 +42,7 @@ export namespace opn {
         }
 
     public:
-        void update() const {
+        void onUpdate(float _deltaTime) override {
             const auto currentTime = Clock::now();
             m_deltaTimeReal = std::chrono::duration<double>(currentTime - m_lastFrameTime).count();
             m_lastFrameTime = currentTime;
@@ -52,7 +52,7 @@ export namespace opn {
             m_accumulator += m_deltaTimeGame;
         }
 
-        bool checkPhysicsStep() const {
+        bool checkPhysicsStep() {
             if (m_accumulator >= m_fixedDeltaTime) {
                 m_accumulator -= m_fixedDeltaTime;
                 return true;
@@ -60,18 +60,18 @@ export namespace opn {
             return false;
         }
 
-        [[nodiscard]] double getDeltaTime() const { return m_deltaTimeGame; }
-        [[nodiscard]] double getRealDeltaTime() const { return m_deltaTimeReal; }
-        [[nodiscard]] double getFixedDeltaTime() const { return m_fixedDeltaTime; }
+        [[nodiscard]] double getDeltaTime() const noexcept { return m_deltaTimeGame; }
+        [[nodiscard]] double getRealDeltaTime() const noexcept { return m_deltaTimeReal; }
+        [[nodiscard]] double getFixedDeltaTime() const noexcept { return m_fixedDeltaTime; }
 
         [[nodiscard]] double getPhysicsInterpolationFactor() const {
             return m_accumulator / m_fixedDeltaTime;
         }
 
-        void setPaused(const bool _paused) const { m_paused = _paused; }
-        void setTimeScale(const double _scale) const { m_timeScale = _scale; }
+        void setPaused(const bool _paused) noexcept { m_paused = _paused; }
+        void setTimeScale(const double _scale) noexcept { m_timeScale = _scale; }
 
-        void setPhysicsRate(const double _hz) const {
+        void setPhysicsRate(const double _hz) noexcept {
             m_physicsRate = _hz;
             m_fixedDeltaTime = 1.0 / _hz;
         }

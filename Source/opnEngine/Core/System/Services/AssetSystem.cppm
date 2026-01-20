@@ -33,12 +33,6 @@ namespace opn {
         [[nodiscard]] static CommandAssetLoad load(std::string path) { return CommandAssetLoad{std::move(path)}; }
         [[nodiscard]] static CommandAssetUnload unload(std::string path) { return CommandAssetUnload{std::move(path)}; }
 
-        /*
-        AssetSystem() = default;
-
-        ~AssetSystem() override { AssetSystem::shutdown(); }
-        */
-
         void onInit() override {
             const auto threadCount = std::max(1u, std::thread::hardware_concurrency() / 4);
 
@@ -59,6 +53,9 @@ namespace opn {
             m_workers.clear();
             opn::logInfo("AssetService", "Shutdown successfully.");
         }
+
+        void onUpdate(float _deltaTime) override {
+        };
 
     private:
         void workerLoop(const std::stop_token &_stopToken) {
@@ -87,13 +84,13 @@ namespace opn {
 
         /// TODO make these not dummy functions
 
-        static void loadInternal(const std::string &_path) {
+        void loadInternal(const std::string &_path) {
             logInfo("AssetSystem", "Worker loading: {}", _path);
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             logInfo("AssetSystem", "Worker finished: {}", _path);
         }
 
-        static void unloadInternal(const std::string &_path) {
+        void unloadInternal(const std::string &_path) {
             logInfo("AssetSystem", "Unloading: {}", _path);
         }
     };
