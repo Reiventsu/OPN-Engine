@@ -13,6 +13,7 @@ using AppServices = opn::SystemTypeList<
     opn::Time,         // Mandatory service
     opn::WindowSystem, // Mandatory service
     opn::AssetSystem
+    //opn::Rendering<Vulkan/DirectX>
 >;
 
 using ServiceManager = opn::ServiceManager_Impl<AppServices>;

@@ -7,10 +7,12 @@ target_sources(Services
         AssetSystem.cppm
         WindowSystem.cppm
         Time.cppm
+        Rendering.cppm
 )
 
 target_link_libraries(Services
         PUBLIC
+        Renderer
         CoreSystems
         CoreUtils
         glfw

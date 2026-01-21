@@ -1,4 +1,3 @@
-find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 
 add_library(Renderer)
@@ -15,8 +14,5 @@ target_sources(Renderer
         PUBLIC
         FILE_SET CXX_MODULES FILES
         VulkanImpl.cppm
-)
-
-target_include_directories(Renderer PUBLIC
-        $<TARGET_PROPERTY:vk-bootstrap,INTERFACE_INCLUDE_DIRECTORIES>
+        DirectXImpl.cppm
 )

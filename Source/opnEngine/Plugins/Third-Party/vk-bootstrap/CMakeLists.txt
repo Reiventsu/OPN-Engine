@@ -10,4 +10,4 @@ target_sources(vk-bootstrap
 )
 target_include_directories(vk-bootstrap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(vk-bootstrap PRIVATE Vulkan::Vulkan)
+target_link_libraries(vk-bootstrap PUBLIC Vulkan::Vulkan)
