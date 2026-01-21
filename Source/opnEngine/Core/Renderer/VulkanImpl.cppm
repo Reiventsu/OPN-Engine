@@ -18,6 +18,9 @@ export namespace opn {
             logInfo("VulkanBackend", "Initializing...");
             buildInstance();
         }
+        void shutdownVulkan() {
+            logInfo("VulkanBackend", "Shutting down...");
+        }
 
         void buildInstance() {
             vkb::InstanceBuilder builder;
@@ -27,15 +30,15 @@ export namespace opn {
                     .use_default_debug_messenger()
                     .build();
 
-            vkb::Instance vkbInstance = instance_return.value;
+            vkb::Instance vkbInstance = instance_return.value();
 
             m_instance = vkbInstance.instance;
             m_debugMessenger = vkbInstance.debug_messenger;
 
-            physicalDevice(instance_return);
+            physicalDevice(vkbInstance);
         }
 
-        void physicalDevice(auto &_instanceReturn) {
+        void physicalDevice(vkb::Instance &_vkbInst) {
             VkPhysicalDeviceVulkan13Features features = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES
             };
@@ -48,7 +51,7 @@ export namespace opn {
             features12.bufferDeviceAddress = true;
             features12.descriptorIndexing = true;
 
-            vkb::PhysicalDeviceSelector selector = {_instanceReturn};
+            vkb::PhysicalDeviceSelector selector{_vkbInst};
             vkb::PhysicalDevice physicalDevice = selector
                     .set_minimum_version(1, 3)
                     .set_required_features_13(features)
@@ -63,9 +66,9 @@ export namespace opn {
             m_device = vkbDevice.device;
             m_physicalDevice = +physicalDevice.physical_device;
         }
+
     public:
         void bindBackend() {
-
         };
     };
 }

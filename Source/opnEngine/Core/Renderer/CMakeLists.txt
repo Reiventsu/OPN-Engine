@@ -8,6 +8,7 @@ target_link_libraries(Renderer
         glfw
         vk-bootstrap
         hlslpp_module
+        CoreUtils
 )
 
 target_sources(Renderer

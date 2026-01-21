@@ -32,7 +32,6 @@ export namespace opn {
         sTask() = default;
     };
 
-    // Forward decl
     struct sJobHandle;
 
     /**
@@ -122,11 +121,9 @@ export namespace opn {
         }
 
         static void signalCompletion(const uint32_t _fenceID) noexcept {
-            // 1. Mark done and notify waiters
             s_fencePool[_fenceID % MAX_FENCES].store(0, std::memory_order_release);
             s_fencePool[_fenceID % MAX_FENCES].notify_all();
 
-            // 2. Check for dependencies
             {
                 std::lock_guard lock(s_dependencyMutex);
                 if (const auto itr = s_dependencies.find(_fenceID); itr != s_dependencies.end()) {

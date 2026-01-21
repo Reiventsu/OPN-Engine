@@ -35,7 +35,7 @@ export namespace opn {
 
         void onShutdown() override {
             if constexpr (std::is_same_v<Backend, VulkanImpl>)
-                Backend::template shutdownRenderer();
+                Backend::shutdownVulkan();
         };
 
         void onUpdate(float _deltaTime) override {
