@@ -84,13 +84,13 @@ namespace opn {
 
         /// TODO make these not dummy functions
 
-        void loadInternal(const std::string &_path) {
+        void loadInternal(const std::string &_path) const {
             logInfo("AssetSystem", "Worker loading: {}", _path);
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             logInfo("AssetSystem", "Worker finished: {}", _path);
         }
 
-        void unloadInternal(const std::string &_path) {
+        void unloadInternal(const std::string &_path) const {
             logInfo("AssetSystem", "Unloading: {}", _path);
         }
     };
