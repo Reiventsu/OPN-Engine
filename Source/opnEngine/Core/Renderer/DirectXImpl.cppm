@@ -4,12 +4,14 @@ module;
 
 export module opn.Renderer.DirectX;
 import opn.Plugins.ThirdParty.hlslpp;
-
-using namespace hlslpp;
+import opn.Utils.Logging;
 
 export namespace opn {
+
     class DirectXImpl {
 
-        void initializeRenderer() {};
+        void initializeRenderer() {
+            logInfo("DirectX Backend", "Initializing...");
+        };
     };
 }

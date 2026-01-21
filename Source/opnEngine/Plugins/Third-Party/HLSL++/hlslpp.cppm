@@ -1,6 +1,6 @@
-// My own repackaging of the library into a module.
 module;
 
+// My own repackaging of the library into a module.
 #include "hlsl++.h"
 
 export module opn.Plugins.ThirdParty.hlslpp;

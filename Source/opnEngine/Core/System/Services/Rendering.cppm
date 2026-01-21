@@ -3,6 +3,7 @@ module;
 
 export module opn.System.Service.Rendering;
 import opn.System.ServiceInterface;
+import opn.System.Service.WindowSystem;
 import opn.Renderer.Vulkan;
 import opn.Renderer.DirectX; // placeholder does nothing rn
 
@@ -19,8 +20,12 @@ export namespace opn {
 
     protected:
         void onInit() override {
-            if constexpr (std::is_same_v<Backend, VulkanImpl>)
-                auto instance = Backend::template initializeRenderer();
+            if constexpr (std::is_same_v<Backend, VulkanImpl>) {
+                auto instance = Backend::initVulkan();
+
+
+            }
+
 
             /* Will be overhauled later
             else if constexpr (std::is_same_v<Backend, DirectXImpl>)

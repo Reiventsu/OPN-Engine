@@ -16,8 +16,6 @@ namespace opn {
         bool m_framebufferResized = false;
 
     public:
-        WindowSystem() = default;
-
         [[nodiscard]] bool shouldClose() const {
             return m_window && glfwWindowShouldClose(m_window);
         }
@@ -50,7 +48,7 @@ namespace opn {
             return std::vector(extensions, extensions + count);
         }
 
-        [[nodiscard]] VkSurfaceKHR createSurface(const VkInstance _instance) const {
+        [[nodiscard]] VkSurfaceKHR createSurface(const VkInstance& _instance) const {
             VkSurfaceKHR surface;
             if (glfwCreateWindowSurface(_instance, m_window, nullptr, &surface) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create window surface!");
