@@ -10,8 +10,8 @@ import opn.System.Services;
 import opn.Utils.Logging;
 
 using AppServices = opn::SystemTypeList<
-    opn::Time,
-    opn::WindowSystem,
+    opn::Time,         // Mandatory service
+    opn::WindowSystem, // Mandatory service
     opn::AssetSystem
 >;
 
