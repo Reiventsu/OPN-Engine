@@ -8,12 +8,13 @@ import opn.System.ServiceManager;
 import opn.System.SystemTypeList;
 import opn.System.Services;
 import opn.Utils.Logging;
+import opn.Renderer.Backend;
 
 using AppServices = opn::SystemTypeList<
-    opn::Time,         // Mandatory service
+    opn::Time, // Mandatory service
     opn::WindowSystem, // Mandatory service
-    opn::AssetSystem
-    //opn::Rendering<Vulkan/DirectX>
+    opn::AssetSystem,
+    opn::Rendering<opn::VulkanImpl>
 >;
 
 using ServiceManager = opn::ServiceManager_Impl<AppServices>;

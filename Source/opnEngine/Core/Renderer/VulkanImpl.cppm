@@ -14,14 +14,6 @@ export namespace opn {
         VkDevice m_device = nullptr;
         VkSurfaceKHR m_surface = nullptr;
 
-        void initVulkan() {
-            logInfo("VulkanBackend", "Initializing...");
-            buildInstance();
-        }
-        void shutdownVulkan() {
-            logInfo("VulkanBackend", "Shutting down...");
-        }
-
         void buildInstance() {
             vkb::InstanceBuilder builder;
             auto instance_return = builder
@@ -68,6 +60,15 @@ export namespace opn {
         }
 
     public:
+        void initVulkan() {
+            logInfo("VulkanBackend", "Initializing...");
+            buildInstance();
+        }
+
+        void shutdownVulkan() {
+            logInfo("VulkanBackend", "Shutting down...");
+        }
+
         void bindBackend() {
         };
     };

@@ -15,40 +15,30 @@ export namespace opn {
 
     template<ValidRenderer Backend>
     class Rendering final : public Service<Rendering<Backend> > {
-        friend class VulkanImpl;
-        friend class DirectXImpl;
+        Backend m_Backend{};
 
     protected:
         void onInit() override {
             if constexpr (std::is_same_v<Backend, VulkanImpl>) {
-                auto instance = Backend::initVulkan();
-
-
-            }
-
-
-            /* Will be overhauled later
-            else if constexpr (std::is_same_v<Backend, DirectXImpl>)
-                auto instance = Backend::template initializeRenderer();
-            */
+                m_Backend.initVulkan();
+            } else if constexpr (std::is_same_v<Backend, DirectXImpl>)
+                m_Backend.initDirectX();
         };
 
         void onShutdown() override {
             if constexpr (std::is_same_v<Backend, VulkanImpl>)
-                Backend::shutdownVulkan();
+                m_Backend.shutdownVulkan();
+            else if constexpr (std::is_same_v<Backend, DirectXImpl>)
+                m_Backend.shutdownDirectX();
         };
 
         void onUpdate(float _deltaTime) override {
-
             if constexpr (std::is_same_v<Backend, VulkanImpl>) {
-
+                // TODO update vulkan
             }
-
-
             else if constexpr (std::is_same_v<Backend, DirectXImpl>) {
-
+                // TODO update DirectX
             }
-
         };
     };
 }

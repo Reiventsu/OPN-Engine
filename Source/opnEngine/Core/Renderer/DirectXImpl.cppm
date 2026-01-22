@@ -7,11 +7,14 @@ import opn.Plugins.ThirdParty.hlslpp;
 import opn.Utils.Logging;
 
 export namespace opn {
-
     class DirectXImpl {
-
-        void initializeRenderer() {
+    public:
+        void initDirectX() {
             logInfo("DirectX Backend", "Initializing...");
         };
+
+        void shutdownDirectX() {
+            logInfo("DirectX Backend", "Shutting down...");
+        }
     };
 }

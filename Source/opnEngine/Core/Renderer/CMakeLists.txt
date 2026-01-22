@@ -16,4 +16,5 @@ target_sources(Renderer
         FILE_SET CXX_MODULES FILES
         VulkanImpl.cppm
         DirectXImpl.cppm
+        RenderBackend.cppm
 )
