@@ -13,8 +13,8 @@ import opn.Renderer.Backend;
 using AppServices = opn::SystemTypeList<
     opn::Time, // Mandatory service
     opn::WindowSystem, // Mandatory service
-    opn::AssetSystem,
-    opn::Rendering<opn::VulkanImpl>
+    opn::Rendering<opn::VulkanImpl>,
+    opn::AssetSystem
 >;
 
 using ServiceManager = opn::ServiceManager_Impl<AppServices>;
