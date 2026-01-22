@@ -9,7 +9,10 @@ target_link_libraries(OPN_Engine
         PRIVATE
         CoreUtils
         CoreSystems
+        WindowingInterface
+        RenderInterface
         Services
+        Renderer
 )
 
 target_include_directories(OPN_Engine

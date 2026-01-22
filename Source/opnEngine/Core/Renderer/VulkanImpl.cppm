@@ -2,19 +2,36 @@ module;
 #include "vulkan/vulkan.hpp"
 #include "VkBootstrap.h"
 
+#include <atomic>
+
 export module opn.Renderer.Vulkan;
+
+import opn.Renderer.Backend;
+import opn.System.WindowSurfaceProvider;
 import opn.Plugins.ThirdParty.hlslpp;
 import opn.Utils.Logging;
+import opn.Utils.Exceptions;
 
 export namespace opn {
-    class VulkanImpl {
+    class VulkanImpl : public RenderBackend {
+        std::atomic_bool m_isInitialized{};
         VkInstance m_instance = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
-        VkPhysicalDevice m_physicalDevice = nullptr;
+        VkPhysicalDevice m_chosenDevice = nullptr;
         VkDevice m_device = nullptr;
         VkSurfaceKHR m_surface = nullptr;
 
-        void buildInstance() {
+        VkSwapchainKHR m_swapchain;
+        VkFormat m_swapchainImageFormat;
+
+        std::vector<VkImage> m_swapchainImages;
+        std::vector<VkImageView> m_swapchainImageViews;
+        VkExtent2D m_swapchainExtent;
+
+
+        const WindowSurfaceProvider* m_windowHandle = nullptr;
+
+        void buildBackend() {
             vkb::InstanceBuilder builder;
             auto instance_return = builder
                     .set_app_name("OPN Engine")
@@ -56,20 +73,54 @@ export namespace opn {
             vkb::Device vkbDevice = deviceBuilder.build().value();
 
             m_device = vkbDevice.device;
-            m_physicalDevice = +physicalDevice.physical_device;
+            m_chosenDevice = +physicalDevice.physical_device;
         }
+        void createSwapchain() {
+            vkb::SwapchainBuilder swapchainBuilder{ m_chosenDevice, m_device, m_surface };
 
+            m_swapchainImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+            vkb::Swapchain vkbSwapChain = swapchainBuilder
+            .set_desired_format(VkSurfaceFormatKHR{ .format = m_swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+            .set_desired_extent(m_windowHandle)
+        };
+        void destroySwapchain() {
+        };
+
+        //// Bootstrapping callers.
     public:
-        void initVulkan() {
+        void init() final {
+            if (m_isInitialized.exchange(true))
+                throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");
             logInfo("VulkanBackend", "Initializing...");
-            buildInstance();
+            buildBackend();
         }
 
-        void shutdownVulkan() {
+        void shutdown() final {
             logInfo("VulkanBackend", "Shutting down...");
+            if (m_isInitialized.exchange(false)) {
+
+                destroySwapchain();
+
+                vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+                vkDestroyDevice(m_device, nullptr);
+
+                vkb::destroy_debug_utils_messenger(m_instance, m_debugMessenger);
+                vkDestroyInstance(m_instance, nullptr);
+            }
+
         }
 
-        void bindBackend() {
+        void update(float _deltaTime) final {
+        }
+
+        void render() final {
+        }
+
+        void bindToWindow(const WindowSurfaceProvider &_windowProvider) final {
+            m_windowHandle = &_windowProvider;
+            m_surface = _windowProvider.createSurface(m_instance);
         };
     };
 }

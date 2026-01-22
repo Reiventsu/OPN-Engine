@@ -1,17 +1,17 @@
 module;
 #include <concepts>
+#include <stdexcept>
 
 export module opn.System.Service.Rendering;
+import opn.Renderer.Backend;
 import opn.System.ServiceInterface;
+import opn.Utils.Logging;
 import opn.System.Service.WindowSystem;
-import opn.Renderer.Vulkan;
-import opn.Renderer.DirectX; // placeholder does nothing rn
 
 
 export namespace opn {
     template<typename T>
-    concept ValidRenderer = std::same_as<T, VulkanImpl> ||
-                            std::same_as<T, DirectXImpl>;
+    concept ValidRenderer = std::derived_from<T, RenderBackend>;
 
     template<ValidRenderer Backend>
     class Rendering final : public Service<Rendering<Backend> > {
@@ -19,26 +19,24 @@ export namespace opn {
 
     protected:
         void onInit() override {
-            if constexpr (std::is_same_v<Backend, VulkanImpl>) {
-                m_Backend.initVulkan();
-            } else if constexpr (std::is_same_v<Backend, DirectXImpl>)
-                m_Backend.initDirectX();
+            m_Backend.init();
+        };
+
+        void onPostInit() override {
+            if (auto *ws = WindowSystem::getService()) {
+                m_Backend.bindToWindow(*ws);
+            } else {
+                opn::logCritical("Rendering", "Failed to bind rendering backend, window system not found.");
+                throw std::runtime_error("Service dependency not satisfied: WindowSystem.");
+            }
         };
 
         void onShutdown() override {
-            if constexpr (std::is_same_v<Backend, VulkanImpl>)
-                m_Backend.shutdownVulkan();
-            else if constexpr (std::is_same_v<Backend, DirectXImpl>)
-                m_Backend.shutdownDirectX();
+            m_Backend.shutdown();
         };
 
         void onUpdate(float _deltaTime) override {
-            if constexpr (std::is_same_v<Backend, VulkanImpl>) {
-                // TODO update vulkan
-            }
-            else if constexpr (std::is_same_v<Backend, DirectXImpl>) {
-                // TODO update DirectX
-            }
+            m_Backend.update(_deltaTime);
         };
     };
 }

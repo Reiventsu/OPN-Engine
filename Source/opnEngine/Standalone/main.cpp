@@ -8,7 +8,7 @@ import opn.System.ServiceManager;
 import opn.System.SystemTypeList;
 import opn.System.Services;
 import opn.Utils.Logging;
-import opn.Renderer.Backend;
+import opn.Renderer.RenderPackage;
 
 using AppServices = opn::SystemTypeList<
     opn::Time, // Mandatory service

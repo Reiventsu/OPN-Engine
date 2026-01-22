@@ -24,6 +24,8 @@ export namespace opn {
             virtual void shutdown() = 0;
 
             virtual void update(float _deltaTime) = 0;
+
+            virtual void postInit() = 0;
         };
 
         template<IsService T>
@@ -40,16 +42,23 @@ export namespace opn {
                 service->init();
             }
 
+            void postInit() override {
+                service->postInit();
+            }
+
             void shutdown() override {
                 if (service) {
                     opn::logTrace("ServiceManager", "Shutting down service holder...");
                     service->shutdown();
                 }
+                else opn::logWarning("ServiceManager", "Service holder already shutdown or was never started.");
             }
 
             void update(float _deltaTime) override {
                 if (service)
                     service->update(_deltaTime);
+                else
+                    opn::logWarning("ServiceManager", "Update called on service holder but failed.");
             }
 
             T &get() { return *service; }
@@ -97,6 +106,21 @@ export namespace opn {
                     itr->second->update(_deltaTime);
                 }
             }
+        }
+
+        static void postInitAll() {
+            if (!initialized.load(std::memory_order_acquire)) {
+                opn::logWarning("ServiceManager", "PostInit called, but ServiceManager wasn't initialized.");
+                return;
+            }
+            for (const auto &typeIndex: initOrder) {
+                auto itr = services.find(typeIndex);
+                if (itr != services.end()) {
+                    itr->second->postInit();
+                }
+            }
+
+            opn::logInfo("ServiceManager", "Post-Initialization complete.");
         }
 
         template<IsService T>

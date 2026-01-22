@@ -1,3 +1,11 @@
+add_library(WindowingInterface)
+
+target_sources(WindowingInterface
+        PUBLIC
+        FILE_SET CXX_MODULES FILES
+        WindowSurfaceProvider.cppm
+)
+
 add_library(Services)
 
 target_sources(Services
@@ -12,8 +20,9 @@ target_sources(Services
 
 target_link_libraries(Services
         PUBLIC
-        Renderer
         CoreSystems
         CoreUtils
+        WindowingInterface
+        RenderInterface
         glfw
 )

@@ -6,9 +6,10 @@ export module opn.System.Service.WindowSystem;
 
 import opn.System.ServiceInterface;
 import opn.Utils.Logging;
+import opn.System.WindowSurfaceProvider;
 
 namespace opn {
-    export class WindowSystem final : public Service<WindowSystem> {
+    export class WindowSystem : public Service<WindowSystem>, public WindowSurfaceProvider {
         GLFWwindow *m_window = nullptr;
         int m_width = 1280;
         int m_height = 720;
@@ -48,7 +49,7 @@ namespace opn {
             return std::vector(extensions, extensions + count);
         }
 
-        [[nodiscard]] VkSurfaceKHR createSurface(const VkInstance& _instance) const {
+        [[nodiscard]] VkSurfaceKHR createSurface(VkInstance _instance) const override {
             VkSurfaceKHR surface;
             if (glfwCreateWindowSurface(_instance, m_window, nullptr, &surface) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create window surface!");
@@ -106,5 +107,7 @@ namespace opn {
             ws->m_height = _height;
             logDebug("WindowSystem", "Window resized: {}x{}", _width, _height);
         }
+
+    public:
     };
 }

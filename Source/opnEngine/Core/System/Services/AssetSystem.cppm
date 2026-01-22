@@ -96,7 +96,7 @@ namespace opn {
     };
 
     void CommandAssetLoad::operator()() const {
-        if (const auto *sys = AssetSystem::getInstance()) {
+        if (const auto *sys = AssetSystem::getService()) {
             sys->loadInternal(assetPath);
         } else {
             logError("AssetService", "Failed to load asset {} as AssetSystem is not initialized.", assetPath);
@@ -104,7 +104,7 @@ namespace opn {
     }
 
     void CommandAssetUnload::operator()() const {
-        if (const auto *sys = AssetSystem::getInstance()) {
+        if (const auto *sys = AssetSystem::getService()) {
             sys->unloadInternal(assetPath);
         }
     }
