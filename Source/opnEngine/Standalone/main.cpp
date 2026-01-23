@@ -26,6 +26,7 @@ int main() {
         opn::JobDispatcher::init();
         ServiceManager::init();
         ServiceManager::registerServices();
+        ServiceManager::postInitAll();
 
         auto &time = ServiceManager::getService<opn::Time>();
         auto &window = ServiceManager::getService<opn::WindowSystem>();
