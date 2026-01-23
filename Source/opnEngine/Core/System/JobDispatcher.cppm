@@ -67,7 +67,7 @@ export namespace opn {
                 throw MultipleInit_Exception("JobDispatcher", loc);
 
             for (auto &f: s_fencePool) f.store(0, std::memory_order_release);
-            opn::logInfo("JobDispatcher", "Job Dispatching service initialized successfully.");
+            opn::logInfo("JobDispatcher", "Job Dispatcher initialized successfully.");
         }
 
         static void shutdown() {

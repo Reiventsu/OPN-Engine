@@ -70,7 +70,7 @@ export namespace opn {
             if (initialized.exchange(true, std::memory_order_acq_rel)) {
                 throw MultipleInit_Exception("ServiceManager", _loc);
             }
-            opn::logInfo("ServiceManager", "ServiceManager initialized successfully. Max Services: {}",
+            opn::logInfo("ServiceManager", "ServiceManager initialized successfully. Services: {}",
                          ServiceList::size());
         }
 
@@ -109,6 +109,7 @@ export namespace opn {
         }
 
         static void postInitAll() {
+            opn::logInfo("ServiceManager", "Post-Initializing services...");
             if (!initialized.load(std::memory_order_acquire)) {
                 opn::logWarning("ServiceManager", "PostInit called, but ServiceManager wasn't initialized.");
                 return;
@@ -137,8 +138,6 @@ export namespace opn {
                 return getServiceInternal<T>();
             }
 
-            opn::logInfo("ServiceManager", "Registering new service...");
-
             auto holder = std::make_unique<ServiceHolder<T> >();
             holder->init();
 
@@ -146,7 +145,7 @@ export namespace opn {
             services.emplace(typeIdx, std::move(holder));
             initOrder.emplace_back(typeIdx);
 
-            opn::logInfo("ServiceManager", "Service registered successfully. Total services: {}", services.size());
+            opn::logInfo("ServiceManager", "Service registered successfully.");
 
             return serviceRef;
         }
@@ -212,7 +211,7 @@ export namespace opn {
                 }
             });
 
-            opn::logInfo("ServiceManager", "All services registered successfully.");
+            opn::logInfo("ServiceManager", "{} services registered successfully.", services.size());
         }
 
     private:

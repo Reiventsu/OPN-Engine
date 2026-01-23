@@ -14,24 +14,39 @@ import opn.Utils.Exceptions;
 
 export namespace opn {
     class VulkanImpl : public RenderBackend {
-        std::atomic_bool m_isInitialized{};
 
-        VkInstance m_instance = nullptr;
+        // Member variables
+        std::atomic_bool             m_isInitialized{};
+        uint32_t                     m_frameNumber{};
+        const WindowSurfaceProvider *m_windowHandle = nullptr;
+
+        VkInstance               m_instance = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
-        VkPhysicalDevice m_chosenDevice = nullptr;
-        VkDevice m_device = nullptr;
-        VkSurfaceKHR m_surface = nullptr;
-
-        VkSwapchainKHR m_swapchain = nullptr;
-        VkFormat m_swapchainImageFormat{};
-
-        std::vector<VkImage> m_swapchainImages;
+        VkPhysicalDevice         m_chosenDevice = nullptr;
+        VkDevice                 m_device = nullptr;
+        VkSurfaceKHR             m_surface = nullptr;
+        VkSwapchainKHR           m_swapchain = nullptr;
+        VkFormat                 m_swapchainImageFormat{};
+        std::vector<VkImage>     m_swapchainImages;
         std::vector<VkImageView> m_swapchainImageViews;
-        VkExtent2D m_swapchainExtent = {};
+        VkExtent2D               m_swapchainExtent = {};
 
         vkb::Instance m_vkbInstance;
+        vkb::Device   m_vkbDevice;
 
-        const WindowSurfaceProvider *m_windowHandle = nullptr;
+        struct sFrameData {
+            VkCommandPool   commandPool{};
+            VkCommandBuffer commandBuffer{};
+        };
+
+        constexpr static uint8_t FRAME_OVERLAP = 2;
+
+        sFrameData m_frameData[FRAME_OVERLAP];
+        sFrameData& getCurrentFrame() { return m_frameData[m_frameNumber % FRAME_OVERLAP]; }
+
+        VkQueue m_graphicsQueue = nullptr;
+        uint32_t m_graphicsQueueFamily = 0;
+
 
         void createInstance() {
             vkb::InstanceBuilder builder;
@@ -92,8 +107,8 @@ export namespace opn {
                 throw std::runtime_error("Failed to create logical device!");
             }
 
-            vkb::Device vkbDevice = deviceRet.value();
-            m_device = vkbDevice.device;
+            m_vkbDevice = deviceRet.value();
+            m_device = m_vkbDevice.device;
             m_chosenDevice = physicalDevice.physical_device;
 
             opn::logInfo("VulkanBackend", "Vulkan device created successfully.");
@@ -134,6 +149,30 @@ export namespace opn {
                     m_swapchainExtent.width, m_swapchainExtent.height);
         };
 
+        void createCommands() {
+            opn::logInfo("VulkanBackend", "Creating command pools...");
+            VkCommandPoolCreateInfo commandPoolInfo = {};
+            commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            commandPoolInfo.pNext = nullptr;
+            commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            commandPoolInfo.queueFamilyIndex = m_graphicsQueueFamily;
+
+            for ( int i = 0; i < FRAME_OVERLAP; ++i) {
+                vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &m_frameData[i].commandPool);
+
+                VkCommandBufferAllocateInfo allocInfo = {};
+                allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+                allocInfo.pNext = nullptr;
+                allocInfo.commandPool = m_frameData[i].commandPool;
+                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                allocInfo.commandBufferCount = 1;
+                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+                vkAllocateCommandBuffers(m_device, &allocInfo, &m_frameData[i].commandBuffer);
+            }
+            opn::logInfo("VulkanBackend", "Command pools created.");
+        };
+
         void destroySwapchain() {
             if (m_swapchain) {
                 vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
@@ -159,6 +198,13 @@ export namespace opn {
             opn::logInfo("VulkanBackend", "Creating logical device...");
             createDevices();
             createSwapchain();
+
+            opn::logInfo("VulkanBackend", "Creating queues...");
+            m_graphicsQueue = m_vkbDevice.get_queue(vkb::QueueType::graphics).value();
+            m_graphicsQueueFamily = m_vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+            createCommands();
+
             opn::logInfo("VulkanBackend", "Initialization complete.");
         }
 

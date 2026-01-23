@@ -1,3 +1,3 @@
 add_subdirectory(Utils)
-add_subdirectory(Renderer)
+add_subdirectory(Rendering)
 add_subdirectory(System)
