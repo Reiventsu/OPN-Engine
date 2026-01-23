@@ -21,15 +21,15 @@ export namespace opn {
         VkDevice m_device = nullptr;
         VkSurfaceKHR m_surface = nullptr;
 
-        VkSwapchainKHR m_swapchain;
-        VkFormat m_swapchainImageFormat;
+        VkSwapchainKHR m_swapchain = nullptr;
+        VkFormat m_swapchainImageFormat{};
 
         std::vector<VkImage> m_swapchainImages;
         std::vector<VkImageView> m_swapchainImageViews;
-        VkExtent2D m_swapchainExtent;
+        VkExtent2D m_swapchainExtent = {};
 
 
-        const WindowSurfaceProvider* m_windowHandle = nullptr;
+        const WindowSurfaceProvider *m_windowHandle = nullptr;
 
         void buildBackend() {
             vkb::InstanceBuilder builder;
@@ -75,17 +75,34 @@ export namespace opn {
             m_device = vkbDevice.device;
             m_chosenDevice = +physicalDevice.physical_device;
         }
+
         void createSwapchain() {
-            vkb::SwapchainBuilder swapchainBuilder{ m_chosenDevice, m_device, m_surface };
+            vkb::SwapchainBuilder swapchainBuilder{m_chosenDevice, m_device, m_surface};
 
             m_swapchainImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
             vkb::Swapchain vkbSwapChain = swapchainBuilder
-            .set_desired_format(VkSurfaceFormatKHR{ .format = m_swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-            .set_desired_extent(m_windowHandle)
+                    .set_desired_format(VkSurfaceFormatKHR{
+                        .format = m_swapchainImageFormat, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                    })
+                    .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                    .set_desired_extent(m_windowHandle->dimension.height, m_windowHandle->dimension.width)
+                    .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+                    .build()
+                    .value();
+
+            m_swapchainExtent = vkbSwapChain.extent;
+            m_swapchain = vkbSwapChain.swapchain;
+            m_swapchainImages = vkbSwapChain.get_images().value();
+            m_swapchainImageViews = vkbSwapChain.get_image_views().value();
         };
+
         void destroySwapchain() {
+            vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+
+            for (int i = 0; i < m_swapchainImageViews.size(); i++) {
+                vkDestroyImageView(m_device, m_swapchainImageViews[i], nullptr);
+            }
         };
 
         //// Bootstrapping callers.
@@ -100,7 +117,6 @@ export namespace opn {
         void shutdown() final {
             logInfo("VulkanBackend", "Shutting down...");
             if (m_isInitialized.exchange(false)) {
-
                 destroySwapchain();
 
                 vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -109,7 +125,6 @@ export namespace opn {
                 vkb::destroy_debug_utils_messenger(m_instance, m_debugMessenger);
                 vkDestroyInstance(m_instance, nullptr);
             }
-
         }
 
         void update(float _deltaTime) final {
@@ -122,5 +137,6 @@ export namespace opn {
             m_windowHandle = &_windowProvider;
             m_surface = _windowProvider.createSurface(m_instance);
         };
+        void decoupleFromWindow();
     };
 }

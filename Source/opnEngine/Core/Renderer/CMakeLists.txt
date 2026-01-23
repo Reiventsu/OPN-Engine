@@ -1,4 +1,3 @@
-find_package(glfw3 REQUIRED)
 
 add_library(RenderInterface)
 

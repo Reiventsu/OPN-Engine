@@ -25,8 +25,10 @@ export namespace opn {
     template<typename T, size_t Size>
     class SPSCQueue {
         static_assert(std::has_single_bit(Size));
-        static_assert(std::is_nothrow_move_assignable_v<T>);
-        static_assert(std::is_nothrow_default_constructible_v<T>);
+        static_assert(std::is_nothrow_move_constructible_v<T>,
+                      "SPSCQueue requires T to be nothrow move-constructible (it constructs in-place).");
+        static_assert(std::is_nothrow_destructible_v<T>,
+                      "SPSCQueue requires T to be nothrow destructible.");
 
     public:
         /**
@@ -78,7 +80,7 @@ export namespace opn {
          * @return false If the queue was empty.
          */
         [[nodiscard]] bool pop(T &_out_item)
-            noexcept(std::is_nothrow_move_assignable_v<T>) {
+            noexcept(std::is_nothrow_move_constructible_v<T>) {
             const auto currentTail = m_tail.load(std::memory_order_relaxed);
 
             if (currentTail == m_head.load(std::memory_order_acquire)) {

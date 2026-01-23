@@ -1,5 +1,5 @@
 module;
-#include <vulkan/vulkan_core.h>
+#include "vulkan/vulkan.hpp"
 export module opn.System.WindowSurfaceProvider;
 
 export namespace opn {

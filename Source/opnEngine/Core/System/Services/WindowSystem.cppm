@@ -1,6 +1,6 @@
 module;
 #include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 export module opn.System.Service.WindowSystem;
 

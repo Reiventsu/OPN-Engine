@@ -6,6 +6,11 @@ target_sources(WindowingInterface
         WindowSurfaceProvider.cppm
 )
 
+target_link_libraries(WindowingInterface
+        PUBLIC
+        Vulkan::Vulkan
+)
+
 add_library(Services)
 
 target_sources(Services
