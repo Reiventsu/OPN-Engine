@@ -17,9 +17,9 @@ target_sources(Services
         PUBLIC
         FILE_SET CXX_MODULES FILES
         SystemsPackage.cppm
+        Time.cppm
         AssetSystem.cppm
         WindowSystem.cppm
-        Time.cppm
         Rendering.cppm
 )
 

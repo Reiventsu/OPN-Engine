@@ -1,4 +1,3 @@
-
 add_library(RenderInterface)
 
 target_sources(RenderInterface
@@ -25,7 +24,7 @@ target_link_libraries(Renderer
 target_sources(Renderer
         PUBLIC
         FILE_SET CXX_MODULES FILES
-        VulkanImpl.cppm
+        Vulkan/VulkanImpl.cppm
         DirectXImpl.cppm
         RenderPackage.cppm
 )

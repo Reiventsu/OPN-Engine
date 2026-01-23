@@ -8,7 +8,7 @@ export namespace opn {
         virtual void init() = 0;
         virtual void shutdown() = 0;
         virtual void update(float _deltaTime) = 0;
-        virtual void render() = 0;
+        virtual void draw() = 0;
         virtual void bindToWindow(const WindowSurfaceProvider&) = 0;
     };
 }

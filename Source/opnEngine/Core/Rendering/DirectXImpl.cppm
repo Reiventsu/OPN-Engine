@@ -31,7 +31,7 @@ export namespace opn {
             // TODO
         }
 
-        void render() override {
+        void draw() override {
             // TODO
         }
 

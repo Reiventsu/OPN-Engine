@@ -35,6 +35,9 @@ export namespace opn {
         vkb::Device   m_vkbDevice;
 
         struct sFrameData {
+            VkSemaphore m_swapchainSemaphore{}, m_renderSemaphore{};
+            VkFence     m_inFlightFence{};
+
             VkCommandPool   commandPool{};
             VkCommandBuffer commandBuffer{};
         };
@@ -213,18 +216,25 @@ export namespace opn {
             if (m_isInitialized.exchange(false)) {
                 destroySwapchain();
 
+                vkDeviceWaitIdle(m_device);
+                for (int i = 0; i < FRAME_OVERLAP; ++i) {
+                    vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
+                }
+
                 vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
                 vkDestroyDevice(m_device, nullptr);
 
                 vkb::destroy_debug_utils_messenger(m_instance, m_debugMessenger);
                 vkDestroyInstance(m_instance, nullptr);
+            } else {
+                logWarning("VulkanBackend", "Shutdown called, but backend was not initialized. Ignoring.");
             }
         }
 
         void update(float _deltaTime) final {
         }
 
-        void render() final {
+        void draw() final {
         }
 
         void bindToWindow(const WindowSurfaceProvider &_windowProvider) final {
