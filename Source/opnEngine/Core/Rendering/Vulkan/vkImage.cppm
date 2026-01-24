@@ -6,8 +6,7 @@ import opn.Utils.Logging;
 
 export namespace vkUtil {
 
-    void transition_image( PFN_vkCmdPipelineBarrier2 _barrierFunc
-                         , VkCommandBuffer _cmd
+    void transition_image( VkCommandBuffer _cmd
                          , VkImage _image
                          , VkImageLayout _currentLayout
                          , VkImageLayout _newLayout)
@@ -36,9 +35,6 @@ export namespace vkUtil {
             .pImageMemoryBarriers = &imageBarrier,
         };
 
-        if (_barrierFunc == nullptr)
-            opn::logCritical("vkUtil","L bozo");
-
-        _barrierFunc(_cmd, &depInfo);
+        vkCmdPipelineBarrier2(_cmd, &depInfo);
     }
 }

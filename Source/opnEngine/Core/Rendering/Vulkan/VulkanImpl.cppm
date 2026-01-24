@@ -62,6 +62,7 @@ export namespace opn {
             vkb::InstanceBuilder builder;
             auto instanceRet = builder
                     .set_app_name("OPN Engine")
+                    .require_api_version( 1,3,0 )
                     .request_validation_layers()
                     .use_default_debug_messenger()
                     .build();
@@ -87,14 +88,14 @@ export namespace opn {
             VkPhysicalDeviceVulkan13Features features13 = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES
             };
-            features13.dynamicRendering = true;
-            features13.synchronization2 = true;
+            features13.dynamicRendering = VK_TRUE;
+            features13.synchronization2 = VK_TRUE;
 
             VkPhysicalDeviceVulkan12Features features12 = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES
             };
-            features12.bufferDeviceAddress = true;
-            features12.descriptorIndexing = true;
+            features12.bufferDeviceAddress = VK_TRUE;
+            features12.descriptorIndexing = VK_TRUE;
 
             vkb::PhysicalDeviceSelector selector{m_vkbInstance};
             auto physicalDeviceRet = selector
@@ -123,7 +124,6 @@ export namespace opn {
             m_device = m_vkbDevice.device;
             m_chosenDevice = physicalDevice.physical_device;
 
-            m_dispatchTable = m_vkbDevice.make_table();
             volkLoadDevice(m_device);
 
             opn::logInfo("VulkanBackend", "Vulkan device created successfully.");
@@ -139,8 +139,6 @@ export namespace opn {
             uint32_t height = m_windowHandle->dimension.height;
 
             if (width == 0 || height == 0) return;
-
-
 
             vkb::SwapchainBuilder swapchainBuilder{m_chosenDevice, m_device, m_surface};
 
@@ -317,15 +315,14 @@ export namespace opn {
                             "vkBeginCommandBuffer"
             );
 
-            vkUtil::transition_image( m_dispatchTable.fp_vkCmdPipelineBarrier2
-                                    , cmd
+            vkUtil::transition_image( cmd
                                     , m_swapchainImages[swapchainImageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_GENERAL
             );
 
             VkClearColorValue clearValue;
-            float flash = std::abs( std::sin( m_frameNumber / 120 ) );
+            auto flash = static_cast<float>(std::abs( std::sin( m_frameNumber / 120.0 ) ));
             clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
             VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
@@ -338,8 +335,7 @@ export namespace opn {
                                  , &clearRange
             );
 
-            vkUtil::transition_image( m_dispatchTable.fp_vkCmdPipelineBarrier2
-                                    , cmd
+            vkUtil::transition_image( cmd
                                     , m_swapchainImages[swapchainImageIndex]
                                     , VK_IMAGE_LAYOUT_GENERAL
                                     , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
