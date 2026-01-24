@@ -25,6 +25,8 @@ target_sources(Renderer
         PUBLIC
         FILE_SET CXX_MODULES FILES
         Vulkan/VulkanImpl.cppm
+        Vulkan/vkInit.cppm
+        Vulkan/vkTypes.cppm
         DirectXImpl.cppm
         RenderPackage.cppm
 )

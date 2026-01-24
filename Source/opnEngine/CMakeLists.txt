@@ -1,6 +1,7 @@
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+
 add_subdirectory(Plugins)
 add_subdirectory(Core)
 
