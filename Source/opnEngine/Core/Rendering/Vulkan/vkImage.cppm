@@ -1,11 +1,17 @@
 module;
-#include <vulkan/vulkan.h>
+#include <volk.h>
 export module opn.Rendering.Util.vk.vkImage;
 import opn.Rendering.Util.vk.vkInit;
+import opn.Utils.Logging;
 
 export namespace vkUtil {
 
-    void transition_image(VkCommandBuffer _cmd, VkImage _image, VkImageLayout _currentLayout, VkImageLayout _newLayout) {
+    void transition_image( PFN_vkCmdPipelineBarrier2 _barrierFunc
+                         , VkCommandBuffer _cmd
+                         , VkImage _image
+                         , VkImageLayout _currentLayout
+                         , VkImageLayout _newLayout)
+    {
         VkImageMemoryBarrier2 imageBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
         imageBarrier.pNext = nullptr;
 
@@ -30,6 +36,9 @@ export namespace vkUtil {
             .pImageMemoryBarriers = &imageBarrier,
         };
 
-        vkCmdPipelineBarrier2(_cmd, &depInfo);
+        if (_barrierFunc == nullptr)
+            opn::logCritical("vkUtil","L bozo");
+
+        _barrierFunc(_cmd, &depInfo);
     }
 }

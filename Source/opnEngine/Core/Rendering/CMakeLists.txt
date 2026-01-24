@@ -25,6 +25,11 @@ target_link_libraries(Renderer
 
 target_sources(Renderer
         PUBLIC
+        Vulkan/VolkImplementation.cpp
+)
+
+target_sources(Renderer
+        PUBLIC
         FILE_SET CXX_MODULES FILES
 
         RenderPackage.cppm

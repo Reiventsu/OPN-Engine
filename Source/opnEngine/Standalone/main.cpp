@@ -25,6 +25,7 @@ int main() {
 
         opn::JobDispatcher::init();
         ServiceManager::init();
+
         ServiceManager::registerServices();
         ServiceManager::postInitAll();
 
