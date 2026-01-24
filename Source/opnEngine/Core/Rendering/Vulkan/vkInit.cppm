@@ -1,8 +1,8 @@
 module;
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan.h>
 
-export module opn.Rendering.Util.vkInit;
-import opn.Rendering.Util.vkTypes;
+export module opn.Rendering.Util.vk.vkInit;
+import opn.Rendering.Util.vk.vkTypes;
 
 export namespace vkinit {
 

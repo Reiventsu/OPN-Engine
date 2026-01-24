@@ -15,6 +15,7 @@ target_link_libraries(Renderer
         RenderInterface
         WindowingInterface
         CoreUtils
+
         Vulkan::Vulkan
         VulkanMemoryAllocator
         glfw
@@ -25,9 +26,13 @@ target_link_libraries(Renderer
 target_sources(Renderer
         PUBLIC
         FILE_SET CXX_MODULES FILES
+
+        RenderPackage.cppm
+
         Vulkan/VulkanImpl.cppm
         Vulkan/vkInit.cppm
         Vulkan/vkTypes.cppm
+        Vulkan/vkImage.cppm
+
         DirectXImpl.cppm
-        RenderPackage.cppm
 )

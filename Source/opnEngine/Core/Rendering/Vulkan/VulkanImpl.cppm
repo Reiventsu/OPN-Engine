@@ -1,15 +1,17 @@
 module;
-#include "vulkan/vulkan.hpp"
+#include "vulkan/vulkan.h"
 #include "VkBootstrap.h"
 
 #include <atomic>
+#include <complex>
 
 export module opn.Renderer.Vulkan;
 
 import opn.Renderer.Backend;
 import opn.System.WindowSurfaceProvider;
-import opn.Rendering.Util.vkInit;
-import opn.Rendering.Util.vkTypes;
+import opn.Rendering.Util.vk.vkInit;
+import opn.Rendering.Util.vk.vkTypes;
+import opn.Rendering.Util.vk.vkImage;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
@@ -123,6 +125,13 @@ export namespace opn {
                 throw std::runtime_error("No window provided to VulkanBackend!");
             }
 
+            uint32_t width = m_windowHandle->dimension.width;
+            uint32_t height = m_windowHandle->dimension.height;
+
+            if (width == 0 || height == 0) return;
+
+
+
             vkb::SwapchainBuilder swapchainBuilder{m_chosenDevice, m_device, m_surface};
 
             m_swapchainImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
@@ -133,7 +142,7 @@ export namespace opn {
                         .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
                     })
                     .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-                    .set_desired_extent(m_windowHandle->dimension.width, m_windowHandle->dimension.height)
+                    .set_desired_extent(width, height)
                     .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                     .build();
 
@@ -158,18 +167,18 @@ export namespace opn {
                     vkinit::command_pool_create_info(m_graphicsQueueFamily
                                                      , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-            for (int i = 0; i < FRAME_OVERLAP; i++) {
-                vkT::vkCheck(
-                    vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &m_frameData[i].commandPool),
+            for (auto &i: m_frameData) {
+                vkUtil::vkCheck(
+                    vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &i.commandPool),
                     "vkCreateCommandPool"
                 );
 
                 VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(
-                    m_frameData[i].commandPool, 1
+                    i.commandPool, 1
                 );
 
-                vkT::vkCheck(
-                    vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &m_frameData[i].commandBuffer),
+                vkUtil::vkCheck(
+                    vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &i.commandBuffer),
                     "vkAllocateCommandBuffers"
                 );
             }
@@ -182,18 +191,18 @@ export namespace opn {
             VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
             VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
 
-            for (int i = 0; i < FRAME_OVERLAP; i++) {
-                vkT::vkCheck(
-                    vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameData[i].m_inFlightFence),
+            for (auto &i: m_frameData) {
+                vkUtil::vkCheck(
+                    vkCreateFence(m_device, &fenceCreateInfo, nullptr, &i.m_inFlightFence),
                     "vkCreateFence"
                 );
 
-                vkT::vkCheck(
-                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_swapchainSemaphore),
+                vkUtil::vkCheck(
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &i.m_swapchainSemaphore),
                     "vkCreateSemaphore: swapchain"
                 );
-                vkT::vkCheck(
-                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_renderSemaphore),
+                vkUtil::vkCheck(
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &i.m_renderSemaphore),
                     "vkCreateSemaphore: render"
                 );
             }
@@ -233,6 +242,8 @@ export namespace opn {
 
             createCommands();
 
+            createSyncObjects();
+
             opn::logInfo("VulkanBackend", "Initialization complete.");
         }
 
@@ -242,8 +253,12 @@ export namespace opn {
                 destroySwapchain();
 
                 vkDeviceWaitIdle(m_device);
-                for (int i = 0; i < FRAME_OVERLAP; ++i) {
-                    vkDestroyCommandPool(m_device, m_frameData[i].commandPool, nullptr);
+                for (auto &i: m_frameData) {
+                    vkDestroyCommandPool(m_device, i.commandPool, nullptr);
+
+                    vkDestroyFence(m_device, i.m_inFlightFence, nullptr);
+                    vkDestroySemaphore(m_device, i.m_renderSemaphore, nullptr);
+                    vkDestroySemaphore(m_device, i.m_swapchainSemaphore, nullptr);
                 }
 
                 vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -257,34 +272,107 @@ export namespace opn {
         }
 
         void update(float _deltaTime) final {
+            if (m_isInitialized == false) return;
+
+            draw();
         }
 
         void draw() final {
-            vkT::vkCheck(
+            if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return;
+
+            vkUtil::vkCheck(
                 vkWaitForFences(m_device, 1, &getCurrentFrame().m_inFlightFence, true, 1000000000),
                 "vkWaitForFences"
             );
-            vkT::vkCheck(vkResetFences(m_device, 1, &getCurrentFrame().m_inFlightFence),
-                         "vkResetFences"
+            vkUtil::vkCheck( vkResetFences( m_device, 1, &getCurrentFrame().m_inFlightFence ),
+                            "vkResetFences"
             );
 
             uint32_t swapchainImageIndex;
-            vkT::vkCheck(vkAcquireNextImageKHR(m_device, m_swapchain, 1000000000,
-                                               getCurrentFrame().m_swapchainSemaphore, nullptr, &swapchainImageIndex),
-                         "vkAcquireNextImageKHR"
+            vkUtil::vkCheck(vkAcquireNextImageKHR(m_device, m_swapchain, 1000000000,
+                                                  getCurrentFrame().m_swapchainSemaphore, nullptr,
+                                                  &swapchainImageIndex),
+                            "vkAcquireNextImageKHR"
             );
 
             VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-            vkT::vkCheck(vkResetCommandBuffer(cmd, 0),
-                         "vkResetCommandBuffer"
+            vkUtil::vkCheck(vkResetCommandBuffer(cmd, 0),
+                            "vkResetCommandBuffer"
             );
 
-            VkCommandBufferBeginInfo beginInfo = vkinit::command_buffer_begin_info(
+            VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-            vkT::vkCheck(vkBeginCommandBuffer(cmd, &beginInfo),
-                         "vkBeginCommandBuffer"
+            vkUtil::vkCheck(vkBeginCommandBuffer(cmd, &cmdBeginInfo),
+                            "vkBeginCommandBuffer"
             );
+
+            vkUtil::transition_image(  cmd
+                                     , m_swapchainImages[swapchainImageIndex]
+                                     , VK_IMAGE_LAYOUT_UNDEFINED
+                                     , VK_IMAGE_LAYOUT_GENERAL
+            );
+
+            VkClearColorValue clearValue;
+            float flash = std::abs( std::sin( m_frameNumber / 120.0f ) );
+            clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+
+            VkImageSubresourceRange clearRange = vkinit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
+
+            vkCmdClearColorImage(  cmd
+                                 , m_swapchainImages[swapchainImageIndex]
+                                 , VK_IMAGE_LAYOUT_GENERAL
+                                 , &clearValue
+                                 , 1
+                                 , &clearRange
+            );
+
+            vkUtil::transition_image( cmd
+                                    , m_swapchainImages[swapchainImageIndex]
+                                    , VK_IMAGE_LAYOUT_GENERAL
+                                    , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            );
+
+            vkUtil::vkCheck( vkEndCommandBuffer(cmd), "vkEndCommandBuffer" );
+
+            VkCommandBufferSubmitInfo cmdSubmitInfo = vkinit::command_buffer_submit_info(cmd);
+
+            VkSemaphoreSubmitInfo waitInfo =
+                vkinit::semaphore_submit_info( VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR
+                                             , getCurrentFrame().m_swapchainSemaphore
+                );
+            VkSemaphoreSubmitInfo signalInfo =
+                vkinit::semaphore_submit_info( VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT
+                                             , getCurrentFrame().m_renderSemaphore
+                );
+
+            VkSubmitInfo2 submitInfo = vkinit::submit_info( &cmdSubmitInfo
+                                                          , &signalInfo
+                                                          , &waitInfo
+            );
+
+            vkUtil::vkCheck(vkQueueSubmit2(m_graphicsQueue
+                                          , 1
+                                          , &submitInfo
+                                          , getCurrentFrame().m_inFlightFence)
+                                          , ""
+            );
+
+            VkPresentInfoKHR presentInfo = {};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            presentInfo.pNext = nullptr;
+            presentInfo.pSwapchains = &m_swapchain;
+            presentInfo.swapchainCount = 1;
+
+            presentInfo.pWaitSemaphores = &getCurrentFrame().m_renderSemaphore;
+            presentInfo.waitSemaphoreCount = 1;
+
+            presentInfo.pImageIndices = &swapchainImageIndex;
+
+            vkUtil::vkCheck(vkQueuePresentKHR(m_graphicsQueue, &presentInfo), "");
+
+            m_frameNumber++;
+
         }
 
         void bindToWindow(const WindowSurfaceProvider &_windowProvider) final {

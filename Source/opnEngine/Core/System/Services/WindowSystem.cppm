@@ -80,6 +80,8 @@ namespace opn {
                 throw std::runtime_error("Failed to create GLFW window!");
             }
 
+            setDimensions(m_width, m_height);
+
             // Set up callbacks
             glfwSetWindowUserPointer(m_window, this);
             glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);

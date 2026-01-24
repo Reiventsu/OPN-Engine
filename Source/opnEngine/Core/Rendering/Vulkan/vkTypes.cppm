@@ -24,9 +24,9 @@ module;
 
 #include "hlsl++.h"
 
-export module opn.Rendering.Util.vkTypes;
+export module opn.Rendering.Util.vk.vkTypes;
 
-export namespace vkT {
+export namespace vkUtil {
     struct AllocatedImage {
         VkImage image;
         VkImageView imageView;
