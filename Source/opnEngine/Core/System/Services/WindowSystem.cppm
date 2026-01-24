@@ -107,7 +107,7 @@ namespace opn {
             ws->m_framebufferResized = true;
             ws->m_width = _width;
             ws->m_height = _height;
-            logDebug("WindowSystem", "Window resized: {}x{}", _width, _height);
+            // logDebug("WindowSystem", "Window resized: {}x{}", _width, _height);
         }
 
     public:

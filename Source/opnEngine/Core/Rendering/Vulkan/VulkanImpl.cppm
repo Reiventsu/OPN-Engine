@@ -46,7 +46,6 @@ export namespace opn {
         };
 
         constexpr static uint8_t FRAME_OVERLAP = 2;
-
         sFrameData m_frameData[FRAME_OVERLAP];
         sFrameData &getCurrentFrame() { return m_frameData[m_frameNumber % FRAME_OVERLAP]; }
 
