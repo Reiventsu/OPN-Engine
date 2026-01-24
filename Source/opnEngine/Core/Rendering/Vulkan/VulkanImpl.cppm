@@ -8,44 +8,44 @@ export module opn.Renderer.Vulkan;
 
 import opn.Renderer.Backend;
 import opn.System.WindowSurfaceProvider;
-import opn.Plugins.ThirdParty.hlslpp;
+import opn.Rendering.Util.vkInit;
+import opn.Rendering.Util.vkTypes;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
 export namespace opn {
     class VulkanImpl : public RenderBackend {
-
         // Member variables
-        std::atomic_bool             m_isInitialized{};
-        uint32_t                     m_frameNumber{};
+        std::atomic_bool m_isInitialized{};
+        uint32_t m_frameNumber{};
         const WindowSurfaceProvider *m_windowHandle = nullptr;
 
-        VkInstance               m_instance = nullptr;
+        VkInstance m_instance = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
-        VkPhysicalDevice         m_chosenDevice = nullptr;
-        VkDevice                 m_device = nullptr;
-        VkSurfaceKHR             m_surface = nullptr;
-        VkSwapchainKHR           m_swapchain = nullptr;
-        VkFormat                 m_swapchainImageFormat{};
-        std::vector<VkImage>     m_swapchainImages;
+        VkPhysicalDevice m_chosenDevice = nullptr;
+        VkDevice m_device = nullptr;
+        VkSurfaceKHR m_surface = nullptr;
+        VkSwapchainKHR m_swapchain = nullptr;
+        VkFormat m_swapchainImageFormat{};
+        std::vector<VkImage> m_swapchainImages;
         std::vector<VkImageView> m_swapchainImageViews;
-        VkExtent2D               m_swapchainExtent = {};
+        VkExtent2D m_swapchainExtent = {};
 
         vkb::Instance m_vkbInstance;
-        vkb::Device   m_vkbDevice;
+        vkb::Device m_vkbDevice;
 
         struct sFrameData {
             VkSemaphore m_swapchainSemaphore{}, m_renderSemaphore{};
-            VkFence     m_inFlightFence{};
+            VkFence m_inFlightFence{};
 
-            VkCommandPool   commandPool{};
+            VkCommandPool commandPool{};
             VkCommandBuffer commandBuffer{};
         };
 
         constexpr static uint8_t FRAME_OVERLAP = 2;
 
         sFrameData m_frameData[FRAME_OVERLAP];
-        sFrameData& getCurrentFrame() { return m_frameData[m_frameNumber % FRAME_OVERLAP]; }
+        sFrameData &getCurrentFrame() { return m_frameData[m_frameNumber % FRAME_OVERLAP]; }
 
         VkQueue m_graphicsQueue = nullptr;
         uint32_t m_graphicsQueueFamily = 0;
@@ -154,27 +154,52 @@ export namespace opn {
 
         void createCommands() {
             opn::logInfo("VulkanBackend", "Creating command pools...");
-            VkCommandPoolCreateInfo commandPoolInfo = {};
-            commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            commandPoolInfo.pNext = nullptr;
-            commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-            commandPoolInfo.queueFamilyIndex = m_graphicsQueueFamily;
+            VkCommandPoolCreateInfo commandPoolInfo =
+                    vkinit::command_pool_create_info(m_graphicsQueueFamily
+                                                     , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-            for ( int i = 0; i < FRAME_OVERLAP; ++i) {
-                vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &m_frameData[i].commandPool);
+            for (int i = 0; i < FRAME_OVERLAP; i++) {
+                vkT::vkCheck(
+                    vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &m_frameData[i].commandPool),
+                    "vkCreateCommandPool"
+                );
 
-                VkCommandBufferAllocateInfo allocInfo = {};
-                allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-                allocInfo.pNext = nullptr;
-                allocInfo.commandPool = m_frameData[i].commandPool;
-                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                allocInfo.commandBufferCount = 1;
-                allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(
+                    m_frameData[i].commandPool, 1
+                );
 
-                vkAllocateCommandBuffers(m_device, &allocInfo, &m_frameData[i].commandBuffer);
+                vkT::vkCheck(
+                    vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &m_frameData[i].commandBuffer),
+                    "vkAllocateCommandBuffers"
+                );
             }
             opn::logInfo("VulkanBackend", "Command pools created.");
         };
+
+        void createSyncObjects() {
+            opn::logInfo("VulkanBackend", "Creating sync objects...");
+
+            VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+            VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+
+            for (int i = 0; i < FRAME_OVERLAP; i++) {
+                vkT::vkCheck(
+                    vkCreateFence(m_device, &fenceCreateInfo, nullptr, &m_frameData[i].m_inFlightFence),
+                    "vkCreateFence"
+                );
+
+                vkT::vkCheck(
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_swapchainSemaphore),
+                    "vkCreateSemaphore: swapchain"
+                );
+                vkT::vkCheck(
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_frameData[i].m_renderSemaphore),
+                    "vkCreateSemaphore: render"
+                );
+            }
+
+            opn::logInfo("VulkanBackend", "Sync objects created.");
+        }
 
         void destroySwapchain() {
             if (m_swapchain) {
@@ -235,6 +260,31 @@ export namespace opn {
         }
 
         void draw() final {
+            vkT::vkCheck(
+                vkWaitForFences(m_device, 1, &getCurrentFrame().m_inFlightFence, true, 1000000000),
+                "vkWaitForFences"
+            );
+            vkT::vkCheck(vkResetFences(m_device, 1, &getCurrentFrame().m_inFlightFence),
+                         "vkResetFences"
+            );
+
+            uint32_t swapchainImageIndex;
+            vkT::vkCheck(vkAcquireNextImageKHR(m_device, m_swapchain, 1000000000,
+                                               getCurrentFrame().m_swapchainSemaphore, nullptr, &swapchainImageIndex),
+                         "vkAcquireNextImageKHR"
+            );
+
+            VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
+            vkT::vkCheck(vkResetCommandBuffer(cmd, 0),
+                         "vkResetCommandBuffer"
+            );
+
+            VkCommandBufferBeginInfo beginInfo = vkinit::command_buffer_begin_info(
+                VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+            vkT::vkCheck(vkBeginCommandBuffer(cmd, &beginInfo),
+                         "vkBeginCommandBuffer"
+            );
         }
 
         void bindToWindow(const WindowSurfaceProvider &_windowProvider) final {

@@ -16,9 +16,10 @@ target_link_libraries(Renderer
         WindowingInterface
         CoreUtils
         Vulkan::Vulkan
+        VulkanMemoryAllocator
         glfw
         vk-bootstrap
-        hlslpp_module
+        hlslpp
 )
 
 target_sources(Renderer

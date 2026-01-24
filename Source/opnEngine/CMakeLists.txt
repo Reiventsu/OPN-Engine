@@ -1,6 +1,5 @@
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
-find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
 add_subdirectory(Plugins)
 add_subdirectory(Core)
@@ -10,7 +9,6 @@ add_executable(OPN_Engine
 
 target_link_libraries(OPN_Engine
         PRIVATE
-        GPUOpen::VulkanMemoryAllocator
         CoreUtils
         CoreSystems
         WindowingInterface

@@ -1,16 +1,14 @@
-add_library(hlslpp_module)
+add_library(hlslpp INTERFACE)
 
-target_sources(hlslpp_module
-        PUBLIC
-        FILE_SET CXX_MODULES FILES
-        hlslpp.cppm
-        PRIVATE
-        hlsl++.natvis
+target_sources(hlslpp
+        INTERFACE
+        FILE_SET HEADERS
+        FILES
+        hlsl++.h
 )
 
-target_include_directories(hlslpp_module
-        PUBLIC
+target_include_directories(hlslpp
+        INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/hlsl++)
-
-target_compile_features(hlslpp_module PUBLIC cxx_std_23)
+        ${CMAKE_CURRENT_SOURCE_DIR}/hlsl++
+)

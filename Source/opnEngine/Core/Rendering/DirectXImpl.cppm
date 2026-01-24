@@ -5,7 +5,6 @@ module;
 export module opn.Renderer.DirectX;
 import opn.Renderer.Backend;
 import opn.System.WindowSurfaceProvider;
-import opn.Plugins.ThirdParty.hlslpp;
 import opn.Utils.Logging;
 
 export namespace opn {

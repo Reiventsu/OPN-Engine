@@ -15,22 +15,18 @@ module;
 #include <array>
 #include <functional>
 #include <deque>
+#include <iostream>
+#include <source_location>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <vk_mem_alloc.h>
 
-#include <fmt/core.h>
-
-#include "matrix_float_type.h"
-#include "vector_float_type.h"
-
+#include "hlsl++.h"
 
 export module opn.Rendering.Util.vkTypes;
-import opn.Plugins.ThirdParty.hlslpp;
 
-export
-{
+export namespace vkT {
     struct AllocatedImage {
         VkImage image;
         VkImageView imageView;
@@ -62,8 +58,7 @@ export
         hlslpp::float4 sunlightColor;
     };
 
-    //> mat_types
-    enum class MaterialPass :uint8_t {
+    enum class MaterialPass : uint8_t {
         MainColor,
         Transparent,
         Other
@@ -80,8 +75,6 @@ export
         MaterialPass passType;
     };
 
-    //< mat_types
-    //> vbuf_types
     struct Vertex {
         hlslpp::float3 position;
         float uv_x;
@@ -99,18 +92,17 @@ export
 
     // push constants for our mesh object draws
     struct GPUDrawPushConstants {
-        glm::mat4 worldMatrix;
+        hlslpp::float4x4 worldMatrix;
         VkDeviceAddress vertexBuffer;
     };
 
-    //< vbuf_types
-
-    //> node_types
     struct DrawContext;
 
     // base class for a renderable dynamic object
     class IRenderable {
-        virtual void Draw(const glm::mat4 &topMatrix, DrawContext &ctx) = 0;
+    public:
+        virtual ~IRenderable() = default;
+        virtual void Draw(const hlslpp::float4x4 &topMatrix, DrawContext &ctx) = 0;
     };
 
     // implementation of a drawable scene node.
@@ -119,35 +111,47 @@ export
     struct Node : public IRenderable {
         // parent pointer must be a weak pointer to avoid circular dependencies
         std::weak_ptr<Node> parent;
-        std::vector<std::shared_ptr<Node> > children;
+        std::vector<std::shared_ptr<Node>> children;
 
-        hlslpp::float4x4 localMatrix;
-        hlslpp::float4x4 worldMatrix;
+        hlslpp::float4x4 localTransform;
+        hlslpp::float4x4 worldTransform;
 
         void refreshTransform(const hlslpp::float4x4 &parentMatrix) {
-            worldMatrix = parentMatrix * localMatrix;
-            for (auto c: children) {
-                c->refreshTransform(worldMatrix);
+            worldTransform = parentMatrix * localTransform;
+            for (auto c : children) {
+                c->refreshTransform(worldTransform);
             }
         }
 
-        virtual void Draw(const hlslpp::float4x4 &topMatrix, DrawContext &ctx) {
+        void Draw(const hlslpp::float4x4 &topMatrix, DrawContext &ctx) override {
             // draw children
-            for (auto &c: children) {
+            for (auto &c : children) {
                 c->Draw(topMatrix, ctx);
             }
         }
     };
 
-    //< node_types
-    //> intro
-#define VK_CHECK(x)                                                     \
-    do {                                                                \
-        VkResult err = x;                                               \
-        if (err) {                                                      \
-             fmt::print("Detected Vulkan error: {}", string_VkResult(err)); \
-            abort();                                                    \
-        }                                                               \
-    } while (0)
-    //< intro
+    // Vulkan error checking context
+    struct VkContext {
+        const char *operation;
+        std::source_location location;
+
+        VkContext(const char *_operation,
+                  const std::source_location _location = std::source_location::current())
+            : operation(_operation), location(_location) {}
+    };
+
+    // Vulkan error checking function
+    inline void vkCheck(VkResult result, VkContext ctx) {
+        if (result != VK_SUCCESS) {
+            std::string_view filename = ctx.location.file_name();
+            if (const auto pos = filename.find_last_of("/\\"); pos != std::string_view::npos) {
+                filename = filename.substr(pos + 1);
+            }
+
+            std::println(std::cerr, "[VULKAN ERROR] {}:{} - {} failed: {}",
+                         filename, ctx.location.line(), ctx.operation, string_VkResult(result));
+            std::abort();
+        }
+    }
 }
