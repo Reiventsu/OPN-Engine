@@ -4,7 +4,7 @@ module;
 export module opn.Rendering.Util.vk.vkInit;
 import opn.Rendering.Util.vk.vkTypes;
 
-export namespace vkinit {
+export namespace vkInit {
 
 //> init_cmd
 VkCommandPoolCreateInfo command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0) {

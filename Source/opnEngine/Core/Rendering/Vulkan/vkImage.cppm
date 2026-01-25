@@ -9,7 +9,7 @@ export namespace vkUtil {
     void transition_image( VkCommandBuffer _cmd
                          , VkImage _image
                          , VkImageLayout _currentLayout
-                         , VkImageLayout _newLayout)
+                         , VkImageLayout _newLayout )
     {
         VkImageMemoryBarrier2 imageBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
         imageBarrier.pNext = nullptr;
@@ -25,7 +25,7 @@ export namespace vkUtil {
         VkImageAspectFlags aspectMask = (_newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
                                             ? VK_IMAGE_ASPECT_DEPTH_BIT
                                             : VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBarrier.subresourceRange = vkinit::image_subresource_range(aspectMask);
+        imageBarrier.subresourceRange = vkInit::image_subresource_range(aspectMask);
         imageBarrier.image = _image;
 
         VkDependencyInfo depInfo = {
@@ -37,4 +37,43 @@ export namespace vkUtil {
 
         vkCmdPipelineBarrier2(_cmd, &depInfo);
     }
+
+    void copy_image_to_image( VkCommandBuffer _cmd
+                            , VkImage _source
+                            , VkImage _destination
+                            , VkExtent2D _srcSize
+                            , VkExtent2D _dstSize )
+    {
+        VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
+
+        blitRegion.srcOffsets[1].x = _srcSize.width;
+        blitRegion.srcOffsets[1].y = _srcSize.height;
+        blitRegion.srcOffsets[1].z = 1;
+
+        blitRegion.dstOffsets[1].x = _dstSize.width;
+        blitRegion.dstOffsets[1].y = _dstSize.height;
+        blitRegion.dstOffsets[1].z = 1;
+
+        blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.baseArrayLayer = 0;
+        blitRegion.srcSubresource.layerCount = 1;
+        blitRegion.srcSubresource.mipLevel = 0;
+
+        blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.baseArrayLayer = 0;
+        blitRegion.dstSubresource.layerCount = 1;
+        blitRegion.dstSubresource.mipLevel = 0;
+
+        VkBlitImageInfo2 blitInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
+        blitInfo.dstImage = _destination;
+        blitInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        blitInfo.srcImage = _source;
+        blitInfo.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        blitInfo.filter = VK_FILTER_LINEAR;
+        blitInfo.regionCount = 1;
+        blitInfo.pRegions = &blitRegion;
+
+        vkCmdBlitImage2(_cmd, &blitInfo);
+    }
+
 }

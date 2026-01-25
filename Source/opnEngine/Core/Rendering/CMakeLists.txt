@@ -26,6 +26,7 @@ target_link_libraries(Renderer
 target_sources(Renderer
         PUBLIC
         Vulkan/VolkImplementation.cpp
+        Vulkan/VMAImplementation.cpp
 )
 
 target_sources(Renderer
@@ -39,5 +40,5 @@ target_sources(Renderer
         Vulkan/vkTypes.cppm
         Vulkan/vkImage.cppm
 
-        DirectXImpl.cppm
+        DirectX/DirectXImpl.cppm
 )
