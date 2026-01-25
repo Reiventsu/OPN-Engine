@@ -583,20 +583,29 @@ export namespace opn {
             );
 
             if (m_imageInFlightFences[imageIndex] != VK_NULL_HANDLE) {
-                vkWaitForFences(m_device, 1, &m_imageInFlightFences[imageIndex], VK_TRUE, UINT64_MAX);
+                vkWaitForFences( m_device
+                               , 1
+                               , &m_imageInFlightFences[imageIndex]
+                               , VK_TRUE
+                               , UINT64_MAX
+                );
             }
             m_imageInFlightFences[imageIndex] = getCurrentFrame().m_inFlightFence;
 
             vkUtil::vkCheck(
-              vkResetFences(m_device, 1, &getCurrentFrame().m_inFlightFence), "resetFences"
+                vkResetFences( m_device
+                             , 1
+                             , &getCurrentFrame().m_inFlightFence)
+                             , "resetFences"
             );
             getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
             //// Command buffer begin
 
             VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-            vkUtil::vkCheck(vkResetCommandBuffer( cmd, 0 )
-                                                , "vkResetCommandBuffer"
+            vkUtil::vkCheck(
+                vkResetCommandBuffer( cmd, 0 ),
+                "vkResetCommandBuffer"
             );
 
             VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
@@ -605,9 +614,10 @@ export namespace opn {
             m_drawImageExtent.width = m_drawImage.imageExtent.width;
             m_drawImageExtent.height = m_drawImage.imageExtent.height;
 
-            vkUtil::vkCheck( vkBeginCommandBuffer( cmd
-                                                 , &cmdBeginInfo )
-                                                 , "vkBeginCommandBuffer"
+            vkUtil::vkCheck(
+                vkBeginCommandBuffer( cmd
+                                    , &cmdBeginInfo )
+                                    , "vkBeginCommandBuffer"
             );
 
             vkUtil::transition_image( cmd
@@ -645,7 +655,10 @@ export namespace opn {
                 , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             );
 
-            vkUtil::vkCheck( vkEndCommandBuffer( cmd ), "vkEndCommandBuffer" );
+            vkUtil::vkCheck(
+                vkEndCommandBuffer( cmd ),
+                "vkEndCommandBuffer"
+            );
 
             // submit
 
@@ -665,11 +678,12 @@ export namespace opn {
                                                           , &waitInfo
             );
 
-            vkUtil::vkCheck(vkQueueSubmit2(m_graphicsQueue
-                                          , 1
-                                          , &submitInfo
-                                          , getCurrentFrame().m_inFlightFence)
-                                          , "vkQueueSubmit2"
+            vkUtil::vkCheck(
+                vkQueueSubmit2( m_graphicsQueue
+                              , 1
+                              , &submitInfo
+                              , getCurrentFrame().m_inFlightFence)
+                              , "vkQueueSubmit2"
             );
 
             VkPresentInfoKHR presentInfo = {};
@@ -683,27 +697,17 @@ export namespace opn {
 
             presentInfo.pImageIndices = &imageIndex;
 
-            vkUtil::vkCheck(vkQueuePresentKHR(m_graphicsQueue, &presentInfo), "vkQueuePresentKHR");
+            vkUtil::vkCheck(
+                vkQueuePresentKHR( m_graphicsQueue
+                                 , &presentInfo)
+                                 , "vkQueuePresentKHR"
+            );
 
             m_frameNumber++;
 
         }
 
         void drawBackground( VkCommandBuffer _cmd ) {
-            /* VkClearColorValue clearValue;
-            auto flash = static_cast<float>(std::abs( std::sin( m_frameNumber / 120.0 ) ));
-            clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
-
-            VkImageSubresourceRange clearRange = vkInit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
-
-            vkCmdClearColorImage(  _cmd
-                                 , m_drawImage.image
-                                 , VK_IMAGE_LAYOUT_GENERAL
-                                 , &clearValue
-                                 , 1
-                                 , &clearRange
-            );
-            */
 
             vkCmdBindPipeline( _cmd
                              , VK_PIPELINE_BIND_POINT_COMPUTE
