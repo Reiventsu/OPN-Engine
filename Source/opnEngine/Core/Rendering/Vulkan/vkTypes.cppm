@@ -28,34 +28,34 @@ export module opn.Rendering.Util.vk.vkTypes;
 
 export namespace vkUtil {
     struct AllocatedImage {
-        VkImage image;
-        VkImageView imageView;
+        VkImage       image;
+        VkImageView   imageView;
         VmaAllocation allocation;
-        VkExtent3D imageExtent;
-        VkFormat imageFormat;
+        VkExtent3D    imageExtent;
+        VkFormat      imageFormat;
     };
 
     struct AllocatedBuffer {
-        VkBuffer buffer;
-        VmaAllocation allocation;
+        VkBuffer          buffer;
+        VmaAllocation     allocation;
         VmaAllocationInfo info;
     };
 
     struct GPUGLTFMaterial {
         hlslpp::float4 colorFactor;
         hlslpp::float4 metallicRoughnessFactor;
-        hlslpp::float4 extra[14];
+        hlslpp::float4 extra[ 14 ];
     };
 
-    static_assert(sizeof(GPUGLTFMaterial) == 256);
+    static_assert( sizeof( GPUGLTFMaterial ) == 256 );
 
     struct GPUSceneData {
         hlslpp::float4x4 viewMatrix;
         hlslpp::float4x4 projectionMatrix;
         hlslpp::float4x4 viewProjectionMatrix;
-        hlslpp::float4 ambientColor;
-        hlslpp::float4 sunlightDirection; // w for sun power
-        hlslpp::float4 sunlightColor;
+        hlslpp::float4   ambientColor;
+        hlslpp::float4   sunlightDirection; // w for sun power
+        hlslpp::float4   sunlightColor;
     };
 
     enum class MaterialPass : uint8_t {
@@ -65,14 +65,14 @@ export namespace vkUtil {
     };
 
     struct MaterialPipeline {
-        VkPipeline pipeline;
+        VkPipeline       pipeline;
         VkPipelineLayout layout;
     };
 
     struct MaterialInstance {
         MaterialPipeline *pipeline;
-        VkDescriptorSet materialSet;
-        MaterialPass passType;
+        VkDescriptorSet   materialSet;
+        MaterialPass      passType;
     };
 
     struct Vertex {
@@ -93,7 +93,7 @@ export namespace vkUtil {
     // push constants for our mesh object draws
     struct GPUDrawPushConstants {
         hlslpp::float4x4 worldMatrix;
-        VkDeviceAddress vertexBuffer;
+        VkDeviceAddress  vertexBuffer;
     };
 
     struct DrawContext;
@@ -141,16 +141,15 @@ export namespace vkUtil {
             : operation(_operation), location(_location) {}
     };
 
-    // Vulkan error checking function
-    inline void vkCheck(VkResult result, VkContext ctx) {
-        if (result != VK_SUCCESS) {
-            std::string_view filename = ctx.location.file_name();
+    inline void vkCheck(VkResult _result, VkContext _ctx) {
+        if (_result != VK_SUCCESS) {
+            std::string_view filename = _ctx.location.file_name();
             if (const auto pos = filename.find_last_of("/\\"); pos != std::string_view::npos) {
                 filename = filename.substr(pos + 1);
             }
 
             std::println(std::cerr, "[VULKAN ERROR] {}:{} - {} failed: {}",
-                         filename, ctx.location.line(), ctx.operation, string_VkResult(result));
+                         filename, _ctx.location.line(), _ctx.operation, string_VkResult(_result));
             std::abort();
         }
     }

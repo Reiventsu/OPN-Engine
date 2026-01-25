@@ -5,6 +5,7 @@ module;
 #include <atomic>
 #include <complex>
 #include <deque>
+#include <filesystem>
 #include <functional>
 
 #include "vk_mem_alloc.h"
@@ -16,26 +17,28 @@ import opn.System.WindowSurfaceProvider;
 import opn.Rendering.Util.vk.vkInit;
 import opn.Rendering.Util.vk.vkTypes;
 import opn.Rendering.Util.vk.vkImage;
+import opn.Rendering.Util.vk.vkDescriptors;
+import opn.Rendering.Util.vk.vkPipeline;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
 export namespace opn {
     class VulkanImpl : public RenderBackend {
         // Member variables
-        std::atomic_bool             m_isInitialized{};
-        uint32_t                     m_frameNumber{};
+        std::atomic_bool             m_isInitialized{ };
+        uint32_t                     m_frameNumber{ };
         const WindowSurfaceProvider *m_windowHandle = nullptr;
 
-        VkInstance               m_instance = nullptr;
-        VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
-        VkPhysicalDevice         m_chosenDevice = nullptr;
-        VkDevice                 m_device = nullptr;
-        VkSurfaceKHR             m_surface = nullptr;
-        VkSwapchainKHR           m_swapchain = nullptr;
-        VkFormat                 m_swapchainImageFormat{};
+        VkInstance               m_instance             = nullptr;
+        VkDebugUtilsMessengerEXT m_debugMessenger       = nullptr;
+        VkPhysicalDevice         m_chosenDevice         = nullptr;
+        VkDevice                 m_device               = nullptr;
+        VkSurfaceKHR             m_surface              = nullptr;
+        VkSwapchainKHR           m_swapchain            = nullptr;
+        VkFormat                 m_swapchainImageFormat{ };
         std::vector<VkImage>     m_swapchainImages;
         std::vector<VkImageView> m_swapchainImageViews;
-        VkExtent2D               m_swapchainExtent = {};
+        VkExtent2D               m_swapchainExtent{ };
 
         vkb::Instance      m_vkbInstance;
         vkb::Device        m_vkbDevice;
@@ -57,22 +60,22 @@ export namespace opn {
         };
 
         struct sFrameData {
-            VkSemaphore m_swapchainSemaphore{},
-                        m_renderSemaphore{};
-            VkFence     m_inFlightFence{};
+            VkSemaphore m_swapchainSemaphore{ },
+                        m_renderSemaphore{ };
+            VkFence     m_inFlightFence{ };
 
-            VkCommandPool   commandPool{};
-            VkCommandBuffer commandBuffer{};
+            VkCommandPool   commandPool{ };
+            VkCommandBuffer commandBuffer{ };
 
             sDeletionQueue m_deletionQueue;
         };
 
         struct sAllocatedImage {
-            VkImage       image{};
-            VkImageView   imageView{};
-            VmaAllocation allocation{};
-            VkExtent3D    imageExtent{};
-            VkFormat      format{};
+            VkImage       image{ };
+            VkImageView   imageView{ };
+            VmaAllocation allocation{ };
+            VkExtent3D    imageExtent{ };
+            VkFormat      format{ };
         };
 
         constexpr static uint8_t FRAME_OVERLAP = 2;
@@ -85,8 +88,16 @@ export namespace opn {
 
         VmaAllocator m_vmaAllocator = nullptr;
 
-        sAllocatedImage m_drawImage{};
-        VkExtent2D      m_drawImageExtent{};
+        sAllocatedImage m_drawImage{ };
+        VkExtent2D      m_drawImageExtent{ };
+
+        vkDesc::sDescriptorAllocator m_globalDescriptorAllocator{ };
+
+        VkDescriptorSet m_drawImageDescriptors{};
+        VkDescriptorSetLayout m_drawImageDescriptorLayout{};
+
+        VkPipeline m_gradientPipeline{ };
+        VkPipelineLayout m_gradientPipelineLayout{ };
 
         void createInstance() {
             if (volkInitialize() != VK_SUCCESS) {
@@ -95,14 +106,14 @@ export namespace opn {
 
             vkb::InstanceBuilder builder;
             auto instanceRet = builder
-                    .set_app_name("OPN Engine")
-                    .require_api_version( 1,3,0 )
+                    .set_app_name( "OPN Engine" )
+                    .require_api_version( 1, 3, 0 )
                     .request_validation_layers()
                     .use_default_debug_messenger()
                     .build();
 
             if (!instanceRet)
-                throw std::runtime_error("Failed to create Vulkan instance!");
+                throw std::runtime_error( "Failed to create Vulkan instance!" );
 
             m_vkbInstance = instanceRet.value();
             m_instance = m_vkbInstance.instance;
@@ -111,23 +122,23 @@ export namespace opn {
 
             m_debugMessenger = m_vkbInstance.debug_messenger;
 
-            opn::logInfo("VulkanBackend", "Vulkan instance created successfully.");
+            opn::logInfo( "VulkanBackend", "Vulkan instance created successfully." );
         }
 
         void createAllocator() {
-            opn::logInfo("VulkanBackend", "Creating VMA Allocator...");
+            opn::logInfo( "VulkanBackend", "Creating VMA Allocator..." );
 
             if (!m_instance || !m_chosenDevice || !m_device) {
-                opn::logCritical("VulkanBackend", "VMA prerequisites not met!");
-                throw std::runtime_error("Cannot create VMA Allocator!");
+                opn::logCritical( "VulkanBackend", "VMA prerequisites not met!" );
+                throw std::runtime_error( "Cannot create VMA Allocator!" );
             }
 
             // Provide Volk function pointers to VMA
-            VmaVulkanFunctions vulkanFunctions = {};
+            VmaVulkanFunctions vulkanFunctions = { };
             vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
             vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
 
-            VmaAllocatorCreateInfo allocatorCreateInfo = {};
+            VmaAllocatorCreateInfo allocatorCreateInfo = { };
             allocatorCreateInfo.physicalDevice = m_chosenDevice;
             allocatorCreateInfo.device = m_device;
             allocatorCreateInfo.instance = m_instance;
@@ -136,22 +147,22 @@ export namespace opn {
             allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
             vkUtil::vkCheck(
-                vmaCreateAllocator(&allocatorCreateInfo, &m_vmaAllocator),
+                vmaCreateAllocator( &allocatorCreateInfo, &m_vmaAllocator ),
                 "vmaCreateAllocator"
             );
 
-            m_mainDeletionQueue.pushFunction([this]() {
-                if (m_vmaAllocator)
-                    vmaDestroyAllocator(m_vmaAllocator);
+            m_mainDeletionQueue.pushFunction( [ this ]( ) {
+                if( m_vmaAllocator )
+                    vmaDestroyAllocator( m_vmaAllocator );
             });
 
-            opn::logInfo("VulkanBackend", "VMA Allocator created successfully!");
+            opn::logInfo( "VulkanBackend", "VMA Allocator created successfully!" );
         }
 
         void createDevices() {
-            if (!m_surface) {
-                logCritical("VulkanBackend", "No surface provided to VulkanBackend!");
-                throw std::runtime_error("No surface provided to VulkanBackend!");
+            if( !m_surface ) {
+                logCritical( "VulkanBackend", "No surface provided to VulkanBackend!" );
+                throw std::runtime_error( "No surface provided to VulkanBackend!" );
             }
 
             VkPhysicalDeviceVulkan13Features features13 = {
@@ -334,6 +345,117 @@ export namespace opn {
             opn::logInfo("VulkanBackend", "Sync objects created.");
         }
 
+        void createDescriptors() {
+            opn::logInfo("VulkanBackend", "Creating descriptor objects...");
+
+            std::vector< vkDesc::sDescriptorAllocator::sPoolSizeRatio > sizes = {
+                { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
+            };
+
+            m_globalDescriptorAllocator.initPool( m_device, 10, sizes );
+
+            {
+                vkDesc::sDescriptorLayoutBuilder builder;
+                builder.add_binding( 0
+                                   , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+                );
+                m_drawImageDescriptorLayout = builder.build( m_device
+                                                           , VK_SHADER_STAGE_COMPUTE_BIT
+                );
+            }
+
+            m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
+
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+            imageInfo.imageView = m_drawImage.imageView;
+
+            VkWriteDescriptorSet drawImageWrite{};
+            drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            drawImageWrite.pNext = nullptr;
+
+            drawImageWrite.dstBinding = 0;
+            drawImageWrite.dstSet = m_drawImageDescriptors;
+            drawImageWrite.descriptorCount = 1;
+            drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            drawImageWrite.pImageInfo = &imageInfo;
+
+            vkUpdateDescriptorSets( m_device
+                                  , 1
+                                  , &drawImageWrite
+                                  , 0
+                                  , nullptr
+            );
+            m_mainDeletionQueue.pushFunction( [ & ]( ) {
+                m_globalDescriptorAllocator.destroyPool(m_device);
+                vkDestroyDescriptorSetLayout( m_device, m_drawImageDescriptorLayout, nullptr);
+            });
+        }
+
+        void createPipelines() {
+            createBackgroundPipelines( "testshader" );
+        }
+
+        void createBackgroundPipelines(const std::string_view _shaderFileName) {
+            std::filesystem::path shaderPath = std::filesystem::current_path() / ".." / "Shaders" / _shaderFileName;
+            shaderPath.replace_extension(".spv");
+
+            if (!std::filesystem::exists(shaderPath)) {
+                opn::logError("VulkanBackend", "Shader file does not exist. Searched for: {}", shaderPath.string());
+            }
+
+            VkPipelineLayoutCreateInfo computeLayout{ };
+            computeLayout.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+            computeLayout.pNext          = nullptr;
+            computeLayout.pSetLayouts    = &m_drawImageDescriptorLayout;
+            computeLayout.setLayoutCount = 1;
+
+            vkUtil::vkCheck( vkCreatePipelineLayout( m_device
+                                                   , &computeLayout
+                                                   , nullptr
+                                                   , &m_gradientPipelineLayout)
+                                                   , "vkCreatePipelineLayout"
+            );
+
+            auto result = vkUtil::loadShaderModule(shaderPath, m_device);
+
+            if (!result) {
+                opn::logError("VulkanBackend", "Failed to load shader: {}", result.error());
+                return;
+            }
+
+            VkShaderModule computeDrawShader = result.value();
+
+            VkPipelineShaderStageCreateInfo stageInfo{};
+            stageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            stageInfo.pNext  = nullptr;
+            stageInfo.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+            stageInfo.module = computeDrawShader;
+            stageInfo.pName  = "main";
+
+            VkComputePipelineCreateInfo computePipelineCreateInfo{};
+            computePipelineCreateInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+            computePipelineCreateInfo.pNext  = nullptr;
+            computePipelineCreateInfo.layout = m_gradientPipelineLayout;
+            computePipelineCreateInfo.stage  = stageInfo;
+
+            vkUtil::vkCheck( vkCreateComputePipelines( m_device
+                                                     , VK_NULL_HANDLE
+                                                     , 1
+                                                     , &computePipelineCreateInfo
+                                                     , nullptr
+                                                     , &m_gradientPipeline)
+                                                     , "vkCreateComputePipeline"
+            );
+
+            vkDestroyShaderModule( m_device, computeDrawShader, nullptr);
+
+            m_mainDeletionQueue.pushFunction( [ & ] {
+                vkDestroyPipelineLayout( m_device, m_gradientPipelineLayout, nullptr );
+                vkDestroyPipeline( m_device, m_gradientPipeline, nullptr );
+            });
+        }
+
         void destroySwapchain() {
             if (m_swapchain) {
                 vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
@@ -367,8 +489,10 @@ export namespace opn {
             m_graphicsQueueFamily = m_vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
             createCommands();
-
             createSyncObjects();
+
+            createDescriptors();
+            createPipelines();
 
             opn::logInfo("VulkanBackend", "Initialization complete.");
         }
@@ -539,7 +663,7 @@ export namespace opn {
         }
 
         void drawBackground( VkCommandBuffer _cmd ) {
-            VkClearColorValue clearValue;
+            /* VkClearColorValue clearValue;
             auto flash = static_cast<float>(std::abs( std::sin( m_frameNumber / 120.0 ) ));
             clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
@@ -551,6 +675,28 @@ export namespace opn {
                                  , &clearValue
                                  , 1
                                  , &clearRange
+            );
+            */
+
+            vkCmdBindPipeline( _cmd
+                             , VK_PIPELINE_BIND_POINT_COMPUTE
+                             , m_gradientPipeline
+            );
+
+            vkCmdBindDescriptorSets( _cmd
+                                   , VK_PIPELINE_BIND_POINT_COMPUTE
+                                   , m_gradientPipelineLayout
+                                   , 0
+                                   , 1
+                                   , &m_drawImageDescriptors
+                                   , 0
+                                   , nullptr
+            );
+
+            vkCmdDispatch( _cmd
+                         , std::ceil( m_drawImageExtent.width / 16.0)
+                         , std::ceil( m_drawImageExtent.height / 16.0 )
+                         , 1
             );
         }
 

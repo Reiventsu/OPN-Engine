@@ -3,6 +3,7 @@ find_package(glfw3 REQUIRED)
 
 add_subdirectory(Plugins)
 add_subdirectory(Core)
+add_subdirectory(Core/Shaders)
 
 add_executable(OPN_Engine
         Standalone/main.cpp)
@@ -22,3 +23,5 @@ target_include_directories(OPN_Engine
         Plugins
         Core
 )
+
+add_dependencies(OPN_Engine CompileShaders)

@@ -39,6 +39,8 @@ target_sources(Renderer
         Vulkan/vkInit.cppm
         Vulkan/vkTypes.cppm
         Vulkan/vkImage.cppm
+        Vulkan/vkDescriptors.cppm
+        Vulkan/vkPipeline.cppm
 
         DirectX/DirectXImpl.cppm
 )
