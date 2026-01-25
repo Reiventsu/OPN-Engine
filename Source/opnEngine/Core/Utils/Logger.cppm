@@ -10,6 +10,8 @@ module;
 
 export module opn.Utils.Logging;
 
+// TODO Add colours to logger for different levels
+
 // Defines all forms of logging code will automatically
 // generate new levels if added to this X macro list.
 #define LOG_LEVELS                 \
