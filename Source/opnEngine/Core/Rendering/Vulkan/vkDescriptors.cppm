@@ -44,11 +44,12 @@ export namespace vkDesc {
             info.flags     = _flags;
 
             VkDescriptorSetLayout set;
-            vkUtil::vkCheck( vkCreateDescriptorSetLayout( _device
-                                                        , &info
-                                                        , nullptr
-                                                        , &set )
-                                                        , "vkCreateDescriptorSetLayout"
+            vkUtil::vkCheck(
+                vkCreateDescriptorSetLayout( _device
+                                           , &info
+                                           , nullptr
+                                           , &set )
+                                           , "vkCreateDescriptorSetLayout"
             );
 
             return set;
@@ -108,10 +109,11 @@ export namespace vkDesc {
             allocInfo.pSetLayouts        = &_layout;
 
             VkDescriptorSet descriptorSet;
-            vkUtil::vkCheck( vkAllocateDescriptorSets( _device
-                                                     , &allocInfo
-                                                     , &descriptorSet )
-                                                     , "vkAllocateDescriptorSets"
+            vkUtil::vkCheck(
+                vkAllocateDescriptorSets( _device
+                                        , &allocInfo
+                                        , &descriptorSet )
+                                        , "vkAllocateDescriptorSets"
             );
 
             return descriptorSet;

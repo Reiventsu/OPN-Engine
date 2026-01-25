@@ -11,17 +11,17 @@ import opn.Utils.Logging;
 import opn.Renderer.RenderPackage;
 
 using AppServices = opn::SystemTypeList<
-    opn::Time, // Mandatory service
+    opn::Time,         // Mandatory service
     opn::WindowSystem, // Mandatory service
-    opn::Rendering<opn::VulkanImpl>,
+    opn::Rendering< opn::VulkanImpl >,
     opn::AssetSystem
 >;
 
-using ServiceManager = opn::ServiceManager_Impl<AppServices>;
+using ServiceManager = opn::ServiceManager_Impl< AppServices >;
 
 int main() {
     try {
-        opn::logInfo("Main", "Starting application...");
+        opn::logInfo( "Main", "Starting application..." );
 
         opn::JobDispatcher::init();
         ServiceManager::init();

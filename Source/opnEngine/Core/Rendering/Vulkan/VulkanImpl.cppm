@@ -272,7 +272,7 @@ export namespace opn {
                 .requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
             };
 
-            vmaCreateImage(m_vmaAllocator
+            vmaCreateImage( m_vmaAllocator
                           , &rimgInfo
                           , &rimgAllocInfo
                           , &m_drawImage.image
@@ -285,11 +285,12 @@ export namespace opn {
                                                                            , VK_IMAGE_ASPECT_COLOR_BIT
             );
 
-            vkUtil::vkCheck(vkCreateImageView( m_device
-                                             , &rViewInfo
-                                             , nullptr
-                                             , &m_drawImage.imageView)
-                                             , "vkCreateImageView"
+            vkUtil::vkCheck(
+                vkCreateImageView( m_device
+                                 , &rViewInfo
+                                 , nullptr
+                                 , &m_drawImage.imageView)
+                                 , "vkCreateImageView"
             );
 
             m_mainDeletionQueue.pushFunction([ this ]() {
