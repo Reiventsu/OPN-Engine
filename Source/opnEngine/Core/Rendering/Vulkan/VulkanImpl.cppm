@@ -302,8 +302,8 @@ export namespace opn {
         void createCommands() {
             opn::logInfo("VulkanBackend", "Creating command pools...");
             VkCommandPoolCreateInfo commandPoolInfo =
-                    vkInit::command_pool_create_info(m_graphicsQueueFamily
-                                                     , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                    vkInit::command_pool_create_info( m_graphicsQueueFamily
+                                                    , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT );
 
             for (auto &i: m_frameData) {
                 vkUtil::vkCheck(
@@ -553,7 +553,7 @@ export namespace opn {
             }
         }
 
-        void update(float _deltaTime) final {
+        void update( float _deltaTime ) final {
             if (m_isInitialized == false) return;
 
             draw();
@@ -563,7 +563,7 @@ export namespace opn {
             if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return;
 
             vkUtil::vkCheck(
-                vkWaitForFences(m_device
+                vkWaitForFences( m_device
                                , 1
                                , &getCurrentFrame().m_inFlightFence
                                , VK_TRUE
