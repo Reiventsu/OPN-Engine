@@ -60,14 +60,14 @@ export namespace opn {
         };
 
         struct sFrameData {
-            VkSemaphore m_swapchainSemaphore{ },
-                        m_renderSemaphore{ };
+            VkSemaphore m_imageAvailableSemaphore{ };
             VkFence     m_inFlightFence{ };
 
             VkCommandPool   commandPool{ };
             VkCommandBuffer commandBuffer{ };
 
             sDeletionQueue m_deletionQueue;
+
         };
 
         struct sAllocatedImage {
@@ -90,6 +90,9 @@ export namespace opn {
 
         sAllocatedImage m_drawImage{ };
         VkExtent2D      m_drawImageExtent{ };
+
+        std::vector< VkFence >     m_imageInFlightFences;
+        std::vector< VkSemaphore > m_renderFinishedSemaphores;
 
         vkDesc::sDescriptorAllocator m_globalDescriptorAllocator{ };
 
@@ -333,16 +336,24 @@ export namespace opn {
                 );
 
                 vkUtil::vkCheck(
-                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &i.m_swapchainSemaphore),
-                    "vkCreateSemaphore: swapchain"
-                );
-                vkUtil::vkCheck(
-                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &i.m_renderSemaphore),
-                    "vkCreateSemaphore: render"
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &i.m_imageAvailableSemaphore),
+                    "vkCreateSemaphore: imageAvailable"
                 );
             }
 
-            opn::logInfo("VulkanBackend", "Sync objects created.");
+            const size_t imageCount = m_swapchainImages.size();
+            m_imageInFlightFences.resize( imageCount, VK_NULL_HANDLE );
+            m_renderFinishedSemaphores.resize( imageCount );
+
+            for (auto &semaphore : m_renderFinishedSemaphores) {
+                vkUtil::vkCheck(
+                  vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &semaphore),
+                  "vkCreateSemaphore: renderFinished"
+                );
+            }
+
+            opn::logInfo("VulkanBackend", "Sync objects created: {} frames, {} swapchain images.",
+                 FRAME_OVERLAP, imageCount );
         }
 
         void createDescriptors() {
@@ -517,13 +528,18 @@ export namespace opn {
                 for (const auto &i: m_frameData) {
                     vkDestroyCommandPool(m_device, i.commandPool, nullptr);
                     vkDestroyFence(m_device, i.m_inFlightFence, nullptr);
-                    vkDestroySemaphore(m_device, i.m_renderSemaphore, nullptr);
-                    vkDestroySemaphore(m_device, i.m_swapchainSemaphore, nullptr);
+                    vkDestroySemaphore(m_device, i.m_imageAvailableSemaphore, nullptr);
                 }
 
-                for (auto &i: m_frameData) {
+                for (auto semaphore : m_renderFinishedSemaphores ) {
+                    vkDestroySemaphore(m_device, semaphore, nullptr);
+                }
+                m_renderFinishedSemaphores.clear();
+
+                for ( auto i : m_frameData ) {
                     i.m_deletionQueue.flushDeletionQueue();
                 }
+                m_imageInFlightFences.clear();
 
                 m_mainDeletionQueue.flushDeletionQueue();
 
@@ -546,25 +562,34 @@ export namespace opn {
         void draw() final {
             if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return;
 
-            uint32_t swapchainImageIndex;
-            vkUtil::vkCheck(vkAcquireNextImageKHR( m_device
-                                                 , m_swapchain
-                                                 , UINT64_MAX
-                                                 , getCurrentFrame().m_swapchainSemaphore
-                                                 , nullptr
-                                                 , &swapchainImageIndex )
-                                                 , "vkAcquireNextImageKHR"
+            vkUtil::vkCheck(
+                vkWaitForFences(m_device
+                               , 1
+                               , &getCurrentFrame().m_inFlightFence
+                               , VK_TRUE
+                               , UINT64_MAX)
+                               , "vkWaitForFences"
             );
+
+            uint32_t imageIndex;
+            vkUtil::vkCheck(
+                vkAcquireNextImageKHR( m_device
+                                     , m_swapchain
+                                     , UINT64_MAX
+                                     , getCurrentFrame().m_imageAvailableSemaphore
+                                     , VK_NULL_HANDLE
+                                     , &imageIndex)
+                                     , "vkAcquireNextImageKHR"
+            );
+
+            if (m_imageInFlightFences[imageIndex] != VK_NULL_HANDLE) {
+                vkWaitForFences(m_device, 1, &m_imageInFlightFences[imageIndex], VK_TRUE, UINT64_MAX);
+            }
+            m_imageInFlightFences[imageIndex] = getCurrentFrame().m_inFlightFence;
 
             vkUtil::vkCheck(
-                vkWaitForFences(m_device, 1, &getCurrentFrame().m_inFlightFence, true, UINT64_MAX),
-                "vkWaitForFences"
+              vkResetFences(m_device, 1, &getCurrentFrame().m_inFlightFence), "resetFences"
             );
-
-            vkUtil::vkCheck( vkResetFences( m_device, 1, &getCurrentFrame().m_inFlightFence ),
-                            "vkResetFences"
-            );
-
             getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
             //// Command buffer begin
@@ -577,7 +602,6 @@ export namespace opn {
             VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info(cmd);
             m_drawImageExtent.width = m_drawImage.imageExtent.width;
             m_drawImageExtent.height = m_drawImage.imageExtent.height;
 
@@ -602,35 +626,38 @@ export namespace opn {
             );
 
             vkUtil::transition_image( cmd
-                                    , m_swapchainImages[ swapchainImageIndex ]
+                                    , m_swapchainImages[ imageIndex ]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             );
 
             vkUtil::copy_image_to_image( cmd
                                        , m_drawImage.image
-                                       , m_swapchainImages[ swapchainImageIndex ]
+                                       , m_swapchainImages[ imageIndex ]
                                        , m_drawImageExtent
                                        , m_swapchainExtent
             );
 
 
             vkUtil::transition_image( cmd
-                , m_swapchainImages[ swapchainImageIndex ]
+                , m_swapchainImages[ imageIndex ]
                 , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
                 , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
             );
 
             vkUtil::vkCheck( vkEndCommandBuffer( cmd ), "vkEndCommandBuffer" );
 
+            // submit
+
+            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info(cmd);
 
             VkSemaphoreSubmitInfo waitInfo =
                 vkInit::semaphore_submit_info( VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR
-                                             , getCurrentFrame().m_swapchainSemaphore
+                                             , getCurrentFrame().m_imageAvailableSemaphore
                 );
             VkSemaphoreSubmitInfo signalInfo =
                 vkInit::semaphore_submit_info( VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT
-                                             , getCurrentFrame().m_renderSemaphore
+                                             , m_renderFinishedSemaphores[imageIndex]
                 );
 
             VkSubmitInfo2 submitInfo = vkInit::submit_info( &cmdSubmitInfo
@@ -642,7 +669,7 @@ export namespace opn {
                                           , 1
                                           , &submitInfo
                                           , getCurrentFrame().m_inFlightFence)
-                                          , ""
+                                          , "vkQueueSubmit2"
             );
 
             VkPresentInfoKHR presentInfo = {};
@@ -651,12 +678,12 @@ export namespace opn {
             presentInfo.pSwapchains = &m_swapchain;
             presentInfo.swapchainCount = 1;
 
-            presentInfo.pWaitSemaphores = &getCurrentFrame().m_renderSemaphore;
+            presentInfo.pWaitSemaphores = &m_renderFinishedSemaphores[imageIndex];
             presentInfo.waitSemaphoreCount = 1;
 
-            presentInfo.pImageIndices = &swapchainImageIndex;
+            presentInfo.pImageIndices = &imageIndex;
 
-            vkUtil::vkCheck(vkQueuePresentKHR(m_graphicsQueue, &presentInfo), "");
+            vkUtil::vkCheck(vkQueuePresentKHR(m_graphicsQueue, &presentInfo), "vkQueuePresentKHR");
 
             m_frameNumber++;
 
