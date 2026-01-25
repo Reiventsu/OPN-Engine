@@ -89,7 +89,6 @@ export namespace opn {
         sAllocatedImage m_drawImage{};
         VkExtent2D      m_drawImageExtent{};
 
-
         void createInstance() {
             if (volkInitialize() != VK_SUCCESS) {
                 throw std::runtime_error("Failed to initialize Volk!");
@@ -117,64 +116,38 @@ export namespace opn {
         }
 
         void createAllocator() {
-    opn::logInfo("VulkanBackend", "Creating VMA Allocator...");
+            opn::logInfo("VulkanBackend", "Creating VMA Allocator...");
 
-    if (!m_instance || !m_chosenDevice || !m_device) {
-        opn::logCritical("VulkanBackend", "VMA prerequisites not met!");
-        throw std::runtime_error("Cannot create VMA Allocator!");
-    }
+            if (!m_instance || !m_chosenDevice || !m_device) {
+                opn::logCritical("VulkanBackend", "VMA prerequisites not met!");
+                throw std::runtime_error("Cannot create VMA Allocator!");
+            }
 
-    // Since Volk already loaded all functions, we can populate VmaVulkanFunctions
-    // with the actual function pointers that Volk set up
-    VmaVulkanFunctions vulkanFunctions = {};
+            // Provide Volk function pointers to VMA
+            VmaVulkanFunctions vulkanFunctions = {};
+            vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+            vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
 
-    // These are the actual function pointers, not the wrapper functions
-    vulkanFunctions.vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)vkGetInstanceProcAddr;
-    vulkanFunctions.vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)vkGetDeviceProcAddr;
+            VmaAllocatorCreateInfo allocatorCreateInfo = {};
+            allocatorCreateInfo.physicalDevice = m_chosenDevice;
+            allocatorCreateInfo.device = m_device;
+            allocatorCreateInfo.instance = m_instance;
+            allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+            allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+            allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
-    // Let VMA query the rest of the functions it needs
-    vulkanFunctions.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
-    vulkanFunctions.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
-    vulkanFunctions.vkAllocateMemory = vkAllocateMemory;
-    vulkanFunctions.vkFreeMemory = vkFreeMemory;
-    vulkanFunctions.vkMapMemory = vkMapMemory;
-    vulkanFunctions.vkUnmapMemory = vkUnmapMemory;
-    vulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
-    vulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
-    vulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
-    vulkanFunctions.vkBindImageMemory = vkBindImageMemory;
-    vulkanFunctions.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
-    vulkanFunctions.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
-    vulkanFunctions.vkCreateBuffer = vkCreateBuffer;
-    vulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
-    vulkanFunctions.vkCreateImage = vkCreateImage;
-    vulkanFunctions.vkDestroyImage = vkDestroyImage;
-    vulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
+            vkUtil::vkCheck(
+                vmaCreateAllocator(&allocatorCreateInfo, &m_vmaAllocator),
+                "vmaCreateAllocator"
+            );
 
-    VmaAllocatorCreateInfo allocatorCreateInfo = {};
-    allocatorCreateInfo.physicalDevice = m_chosenDevice;
-    allocatorCreateInfo.device = m_device;
-    allocatorCreateInfo.instance = m_instance;
-    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
-    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+            m_mainDeletionQueue.pushFunction([this]() {
+                if (m_vmaAllocator)
+                    vmaDestroyAllocator(m_vmaAllocator);
+            });
 
-    opn::logInfo("VulkanBackend", "Calling vmaCreateAllocator...");
-    VkResult result = vmaCreateAllocator(&allocatorCreateInfo, &m_vmaAllocator);
-
-    if (result != VK_SUCCESS) {
-        opn::logCritical("VulkanBackend", "VMA creation failed with code: {}", (int)result);
-        throw std::runtime_error("Failed to create VMA Allocator!");
-    }
-
-    m_mainDeletionQueue.pushFunction([this]() {
-        if (m_vmaAllocator) {
-            vmaDestroyAllocator(m_vmaAllocator);
+            opn::logInfo("VulkanBackend", "VMA Allocator created successfully!");
         }
-    });
-
-    opn::logInfo("VulkanBackend", "VMA Allocator created successfully!");
-}
 
         void createDevices() {
             if (!m_surface) {
