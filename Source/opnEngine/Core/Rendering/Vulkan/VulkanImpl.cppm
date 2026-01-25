@@ -52,7 +52,6 @@ export namespace opn {
                 for (auto & deletor : deletors) {
                     deletor();
                 }
-
                 deletors.clear();
             }
         };
