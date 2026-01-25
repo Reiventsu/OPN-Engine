@@ -45,7 +45,7 @@ export namespace opn {
             std::deque<std::function<void()>> deletors;
 
             void pushFunction(std::function<void()>&& function) {
-                deletors.emplace_back(function);
+                deletors.emplace_back(std::move(function));
             }
 
             void flushDeletionQueue() {
@@ -113,20 +113,68 @@ export namespace opn {
 
             m_debugMessenger = m_vkbInstance.debug_messenger;
 
-            VmaAllocatorCreateInfo allocatorCreateInfo{};
-                                   allocatorCreateInfo.physicalDevice = m_chosenDevice;
-                                   allocatorCreateInfo.device = m_device;
-                                   allocatorCreateInfo.instance = m_instance;
-                                   allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-
-            vmaCreateAllocator(&allocatorCreateInfo,&m_vmaAllocator);
-
-            m_mainDeletionQueue.pushFunction( [ & ]() {
-                vmaDestroyAllocator(m_vmaAllocator);
-            });
-
             opn::logInfo("VulkanBackend", "Vulkan instance created successfully.");
         }
+
+        void createAllocator() {
+    opn::logInfo("VulkanBackend", "Creating VMA Allocator...");
+
+    if (!m_instance || !m_chosenDevice || !m_device) {
+        opn::logCritical("VulkanBackend", "VMA prerequisites not met!");
+        throw std::runtime_error("Cannot create VMA Allocator!");
+    }
+
+    // Since Volk already loaded all functions, we can populate VmaVulkanFunctions
+    // with the actual function pointers that Volk set up
+    VmaVulkanFunctions vulkanFunctions = {};
+
+    // These are the actual function pointers, not the wrapper functions
+    vulkanFunctions.vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)vkGetDeviceProcAddr;
+
+    // Let VMA query the rest of the functions it needs
+    vulkanFunctions.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
+    vulkanFunctions.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
+    vulkanFunctions.vkAllocateMemory = vkAllocateMemory;
+    vulkanFunctions.vkFreeMemory = vkFreeMemory;
+    vulkanFunctions.vkMapMemory = vkMapMemory;
+    vulkanFunctions.vkUnmapMemory = vkUnmapMemory;
+    vulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
+    vulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
+    vulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
+    vulkanFunctions.vkBindImageMemory = vkBindImageMemory;
+    vulkanFunctions.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
+    vulkanFunctions.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
+    vulkanFunctions.vkCreateBuffer = vkCreateBuffer;
+    vulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
+    vulkanFunctions.vkCreateImage = vkCreateImage;
+    vulkanFunctions.vkDestroyImage = vkDestroyImage;
+    vulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo = {};
+    allocatorCreateInfo.physicalDevice = m_chosenDevice;
+    allocatorCreateInfo.device = m_device;
+    allocatorCreateInfo.instance = m_instance;
+    allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+    opn::logInfo("VulkanBackend", "Calling vmaCreateAllocator...");
+    VkResult result = vmaCreateAllocator(&allocatorCreateInfo, &m_vmaAllocator);
+
+    if (result != VK_SUCCESS) {
+        opn::logCritical("VulkanBackend", "VMA creation failed with code: {}", (int)result);
+        throw std::runtime_error("Failed to create VMA Allocator!");
+    }
+
+    m_mainDeletionQueue.pushFunction([this]() {
+        if (m_vmaAllocator) {
+            vmaDestroyAllocator(m_vmaAllocator);
+        }
+    });
+
+    opn::logInfo("VulkanBackend", "VMA Allocator created successfully!");
+}
 
         void createDevices() {
             if (!m_surface) {
@@ -258,7 +306,7 @@ export namespace opn {
                                              , "vkCreateImageView"
             );
 
-            m_mainDeletionQueue.pushFunction([=]() {
+            m_mainDeletionQueue.pushFunction([ this ]() {
                 vkDestroyImageView(m_device, m_drawImage.imageView, nullptr);
                 vmaDestroyImage(m_vmaAllocator, m_drawImage.image, m_drawImage.allocation);
             });
@@ -336,8 +384,10 @@ export namespace opn {
         }
 
         void completeInit() {
-            opn::logInfo("VulkanBackend", "Creating logical device...");
+            opn::logInfo("VulkanBackend", "Completing initialization...");
+
             createDevices();
+            createAllocator();
             createSwapchain();
 
             opn::logInfo("VulkanBackend", "Creating queues...");
@@ -354,19 +404,31 @@ export namespace opn {
         void shutdown() final {
             logInfo("VulkanBackend", "Shutting down...");
             if (m_isInitialized.exchange(false)) {
+                vkDeviceWaitIdle(m_device);
+
                 destroySwapchain();
 
-                vkDeviceWaitIdle(m_device);
+                if (m_drawImage.imageView) {
+                    vkDestroyImageView(m_device, m_drawImage.imageView, nullptr);
+                    m_drawImage.imageView = VK_NULL_HANDLE;
+                }
+                if (m_drawImage.image) {
+                    vmaDestroyImage(m_vmaAllocator, m_drawImage.image, m_drawImage.allocation);
+                    m_drawImage.image = VK_NULL_HANDLE;
+                    m_drawImage.allocation = VK_NULL_HANDLE;
+                }
 
                 for (const auto &i: m_frameData) {
                     vkDestroyCommandPool(m_device, i.commandPool, nullptr);
-
                     vkDestroyFence(m_device, i.m_inFlightFence, nullptr);
                     vkDestroySemaphore(m_device, i.m_renderSemaphore, nullptr);
                     vkDestroySemaphore(m_device, i.m_swapchainSemaphore, nullptr);
-
-                    m_frameData->m_deletionQueue.flushDeletionQueue();
                 }
+
+                for (auto &i: m_frameData) {
+                    i.m_deletionQueue.flushDeletionQueue();
+                }
+
                 m_mainDeletionQueue.flushDeletionQueue();
 
                 vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -386,28 +448,28 @@ export namespace opn {
         }
 
         void draw() final {
-            if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return
-
-            vkUtil::vkCheck(
-                vkWaitForFences(m_device, 1, &getCurrentFrame().m_inFlightFence, true, 1000000000),
-                "vkWaitForFences"
-            );
-
-            getCurrentFrame().m_deletionQueue.flushDeletionQueue();
-
-            vkUtil::vkCheck( vkResetFences( m_device, 1, &getCurrentFrame().m_inFlightFence ),
-                            "vkResetFences"
-            );
+            if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return;
 
             uint32_t swapchainImageIndex;
             vkUtil::vkCheck(vkAcquireNextImageKHR( m_device
                                                  , m_swapchain
-                                                 , 1000000000
+                                                 , UINT64_MAX
                                                  , getCurrentFrame().m_swapchainSemaphore
                                                  , nullptr
                                                  , &swapchainImageIndex )
                                                  , "vkAcquireNextImageKHR"
             );
+
+            vkUtil::vkCheck(
+                vkWaitForFences(m_device, 1, &getCurrentFrame().m_inFlightFence, true, UINT64_MAX),
+                "vkWaitForFences"
+            );
+
+            vkUtil::vkCheck( vkResetFences( m_device, 1, &getCurrentFrame().m_inFlightFence ),
+                            "vkResetFences"
+            );
+
+            getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
             //// Command buffer begin
 
