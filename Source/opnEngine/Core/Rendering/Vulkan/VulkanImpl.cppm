@@ -700,7 +700,7 @@ export namespace opn {
 
             vkUtil::vkCheck(
                 vkQueuePresentKHR( m_graphicsQueue
-                                 , &presentInfo)
+                                 , &presentInfo )
                                  , "vkQueuePresentKHR"
             );
 
@@ -732,7 +732,7 @@ export namespace opn {
             );
         }
 
-        void bindToWindow(const WindowSurfaceProvider &_windowProvider) final {
+        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) final {
             logInfo("VulkanBackend", "Binding to window...");
 
             m_windowHandle = &_windowProvider;
@@ -746,6 +746,5 @@ export namespace opn {
             completeInit();
         }
 
-        void decoupleFromWindow();
     };
 }

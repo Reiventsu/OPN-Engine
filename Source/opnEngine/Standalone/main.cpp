@@ -39,7 +39,7 @@ int main() {
             ServiceManager::updateAll(dt);
         }
 
-        opn::logInfo("Main", "Engine Shutting down.");
+        opn::logInfo("Main", "Engine Shutting down. {}", typeid(ServiceManager).name());
         ServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
 
