@@ -217,12 +217,29 @@ export namespace opn {
             if( m_windowHandle == nullptr ) return;
 
             auto [ width, height ] = m_windowHandle->dimension;
-            if( width == 0 || height == 0 ) return;
+            if( width == 0 || height == 0 ) {
+                destroySwapchain();
+                return;
+            }
+
+            VkSurfaceCapabilitiesKHR capabilities;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR( m_chosenDevice, m_surface, &capabilities );
+
+            if( capabilities.currentExtent.width == 0 ||
+                capabilities.currentExtent.height == 0 ) {
+                destroySwapchain();
+                return;
+            }
 
             vkDeviceWaitIdle( m_device );
 
             vkb::SwapchainBuilder swapchainBuilder{ m_chosenDevice, m_device, m_surface };
             m_swapchainImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+            if( m_swapchain != VK_NULL_HANDLE ) {
+                VkSwapchainKHR oldSwapchain = m_swapchain;
+                swapchainBuilder.set_old_swapchain( oldSwapchain );
+            }
 
             auto vkbSwapChainRet = swapchainBuilder
             .set_desired_format( VkSurfaceFormatKHR{
@@ -230,11 +247,17 @@ export namespace opn {
                 .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
             } )
             .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+            .set_desired_extent( width, height )
             .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
             .set_old_swapchain( m_swapchain )
             .build();
 
-            if ( !vkbSwapChainRet ) return;
+            if ( !vkbSwapChainRet ) {
+                opn::logCritical("VulkanBackend", "Failed to create swapchain: {}",
+                    vkbSwapChainRet.error().message());
+                destroySwapchain();
+                return;
+            }
 
             vkb::Swapchain vkbSwapChain = vkbSwapChainRet.value();
 
@@ -245,23 +268,20 @@ export namespace opn {
 
             for( const auto view : m_swapchainImageViews ) {
                 if( view != VK_NULL_HANDLE ) {
-                    vkDestroyImageView( m_device
-                                      , view
-                                      , nullptr
-                    );
+                    vkDestroyImageView( m_device, view, nullptr );
                 }
             }
             m_swapchainImageViews.clear();
 
-            for (const auto semaphore : m_renderFinishedSemaphores) {
-                if (semaphore != VK_NULL_HANDLE) {
-                    vkDestroySemaphore(m_device, semaphore, nullptr);
+            for( const auto semaphore : m_renderFinishedSemaphores ) {
+                if( semaphore != VK_NULL_HANDLE ) {
+                    vkDestroySemaphore( m_device, semaphore, nullptr );
                 }
             }
             m_renderFinishedSemaphores.clear();
 
-            if (m_swapchain != VK_NULL_HANDLE) {
-                vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+            if( m_swapchain != VK_NULL_HANDLE ) {
+                vkDestroySwapchainKHR( m_device, m_swapchain, nullptr );
             }
 
             m_swapchain                 = vkbSwapChain.swapchain;
@@ -511,6 +531,13 @@ export namespace opn {
                 vkDeviceWaitIdle( m_device );
             }
 
+            for (auto semaphore : m_renderFinishedSemaphores) {
+                if (semaphore != VK_NULL_HANDLE) {
+                    vkDestroySemaphore(m_device, semaphore, nullptr);
+                }
+            }
+            m_renderFinishedSemaphores.clear();
+
             for( const auto view : m_swapchainImageViews ) {
                 if( view != VK_NULL_HANDLE ) {
                     vkDestroyImageView( m_device, view, nullptr );
@@ -518,12 +545,13 @@ export namespace opn {
             }
             m_swapchainImageViews.clear();
 
-            if( m_swapchain ) {
+            if( m_swapchain != VK_NULL_HANDLE ) {
                 vkDestroySwapchainKHR( m_device, m_swapchain, nullptr );
                 m_swapchain = VK_NULL_HANDLE;
             }
 
             m_swapchainImages.clear();
+            m_imageInFlightFences.clear();
         }
 
     public:
@@ -608,7 +636,13 @@ export namespace opn {
         void update( float _deltaTime ) final {
             if (m_isInitialized == false) return;
 
-            if( m_windowHandle->dimension.width == 0 || m_windowHandle->dimension.height == 0) {
+            auto [width, height ] = m_windowHandle->dimension;
+
+            if ( width > 0 && height > 0 && m_swapchain == VK_NULL_HANDLE ) {
+                createSwapchain();
+            }
+
+            if (!shouldRender()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(20));
                 return;
             }
@@ -618,7 +652,9 @@ export namespace opn {
 
         void draw() final {
 
-            if( m_swapchain == VK_NULL_HANDLE || m_windowHandle->dimension.width == 0 ) return;
+            if( m_swapchain == VK_NULL_HANDLE ||
+                m_windowHandle->dimension.width == 0 ||
+                m_windowHandle->dimension.height == 0 ) return;
 
             vkUtil::vkCheck(
                 vkWaitForFences( m_device
@@ -638,7 +674,9 @@ export namespace opn {
                                                                    , &imageIndex
             );
 
-            if( acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR ) {
+            if( acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR ||
+                acquireNextImageResult == VK_SUBOPTIMAL_KHR ||
+                acquireNextImageResult != VK_SUCCESS ) {
                 createSwapchain();
                 return;
             }
@@ -722,21 +760,29 @@ export namespace opn {
             );
 
             VkPresentInfoKHR presentInfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-            presentInfo.pSwapchains      = &m_swapchain;
-            presentInfo.swapchainCount   = 1;
 
+            presentInfo.pSwapchains        = &m_swapchain;
+            presentInfo.swapchainCount     = 1;
             presentInfo.pWaitSemaphores    = &m_renderFinishedSemaphores[imageIndex];
             presentInfo.waitSemaphoreCount = 1;
-
-            presentInfo.pImageIndices = &imageIndex;
+            presentInfo.pImageIndices      = &imageIndex;
 
             VkResult presentResult = vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 
-            if( presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR ) {
+            if( presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+                presentResult == VK_SUBOPTIMAL_KHR ||
+                presentResult == VK_ERROR_SURFACE_LOST_KHR ) {
                 createSwapchain();
             }
 
             m_frameNumber++;
+        }
+
+        bool shouldRender() const {
+            return m_swapchain != VK_NULL_HANDLE &&
+                   m_windowHandle != nullptr &&
+                   m_windowHandle->dimension.width > 0 &&
+                   m_windowHandle->dimension.height > 0;
         }
 
         void drawBackground( VkCommandBuffer _cmd ) {
