@@ -218,6 +218,12 @@ export namespace opn {
                 throw std::runtime_error("No window provided to VulkanBackend!");
             }
 
+            auto dimensions = m_windowHandle->dimension;
+
+            if( dimensions.width == 0 || dimensions.height == 0 )
+                return;
+
+            VkSwapchainKHR oldChain = m_swapchain;
 
             vkb::SwapchainBuilder swapchainBuilder{m_chosenDevice, m_device, m_surface};
 
@@ -229,8 +235,9 @@ export namespace opn {
                         .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
                     })
                     .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-                    .set_desired_extent(m_windowHandle->dimension.width, m_windowHandle->dimension.height)
+                    .set_desired_extent(dimensions.width, dimensions.height)
                     .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+                    .set_old_swapchain( oldChain )
                     .build();
 
             if (!vkbSwapChainRet) {
@@ -252,6 +259,23 @@ export namespace opn {
                 m_windowHandle->dimension.height,
                 1
             };
+
+            if( m_drawImage.imageView != VK_NULL_HANDLE ) {
+                vkDestroyImageView( m_device
+                                  , m_drawImage.imageView
+                                  , nullptr
+                );
+                m_drawImage.imageView = VK_NULL_HANDLE;
+            }
+
+            if( m_drawImage.image != VK_NULL_HANDLE ) {
+                vmaDestroyImage( m_vmaAllocator
+                               , m_drawImage.image
+                               , m_drawImage.allocation
+                );
+                m_drawImage.image      = VK_NULL_HANDLE;
+                m_drawImage.allocation = VK_NULL_HANDLE;
+            }
 
             m_drawImage.format = VK_FORMAT_R16G16B16A16_SFLOAT;
             m_drawImage.imageExtent = drawImageExtent;
@@ -289,16 +313,37 @@ export namespace opn {
                 vkCreateImageView( m_device
                                  , &rViewInfo
                                  , nullptr
-                                 , &m_drawImage.imageView)
+                                 , &m_drawImage.imageView )
                                  , "vkCreateImageView"
             );
 
-            m_mainDeletionQueue.pushFunction([ this ]() {
-                vkDestroyImageView(m_device, m_drawImage.imageView, nullptr);
-                vmaDestroyImage(m_vmaAllocator, m_drawImage.image, m_drawImage.allocation);
-            });
+            if( m_drawImageDescriptors != VK_NULL_HANDLE ) {
+                VkDescriptorImageInfo imageInfo{};
+                imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                imageInfo.imageView = m_drawImage.imageView;
 
-        };
+                VkWriteDescriptorSet drawImageWrite{};
+                drawImageWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                drawImageWrite.pNext           = nullptr;
+                drawImageWrite.dstBinding      = 0;
+                drawImageWrite.dstSet          = m_drawImageDescriptors;
+                drawImageWrite.descriptorCount = 1;
+                drawImageWrite.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                drawImageWrite.pImageInfo      = &imageInfo;
+
+                vkUpdateDescriptorSets( m_device
+                                      , 1
+                                      , &drawImageWrite
+                                      , 0
+                                      , nullptr
+                );
+            }
+
+            if( oldChain != VK_NULL_HANDLE ) {
+                vkDestroySwapchainKHR( m_device, oldChain, nullptr );
+            }
+
+        }
 
         void createCommands() {
             opn::logInfo("VulkanBackend", "Creating command pools...");
@@ -322,15 +367,15 @@ export namespace opn {
                 );
             }
             opn::logInfo("VulkanBackend", "Command pools created.");
-        };
+        }
 
         void createSyncObjects() {
-            opn::logInfo("VulkanBackend", "Creating sync objects...");
+            opn::logInfo( "VulkanBackend", "Creating sync objects..." );
 
-            VkFenceCreateInfo     fenceCreateInfo = vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+            VkFenceCreateInfo     fenceCreateInfo     = vkInit::fence_create_info( VK_FENCE_CREATE_SIGNALED_BIT );
             VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
 
-            for (auto &i: m_frameData) {
+            for( auto &i: m_frameData ) {
                 vkUtil::vkCheck(
                     vkCreateFence(m_device, &fenceCreateInfo, nullptr, &i.m_inFlightFence),
                     "vkCreateFence"
@@ -371,34 +416,17 @@ export namespace opn {
                 builder.add_binding( 0
                                    , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
                 );
+
                 m_drawImageDescriptorLayout = builder.build( m_device
                                                            , VK_SHADER_STAGE_COMPUTE_BIT
                 );
             }
 
-            m_drawImageDescriptors = m_globalDescriptorAllocator.allocate(m_device, m_drawImageDescriptorLayout);
-
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-            imageInfo.imageView = m_drawImage.imageView;
-
-            VkWriteDescriptorSet drawImageWrite{};
-            drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            drawImageWrite.pNext = nullptr;
-
-            drawImageWrite.dstBinding = 0;
-            drawImageWrite.dstSet = m_drawImageDescriptors;
-            drawImageWrite.descriptorCount = 1;
-            drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-            drawImageWrite.pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets( m_device
-                                  , 1
-                                  , &drawImageWrite
-                                  , 0
-                                  , nullptr
+            m_drawImageDescriptors = m_globalDescriptorAllocator.allocate( m_device
+                                                                         , m_drawImageDescriptorLayout
             );
-            m_mainDeletionQueue.pushFunction( [ & ]( ) {
+
+            m_mainDeletionQueue.pushFunction( [ this ]( ) {
                 m_globalDescriptorAllocator.destroyPool(m_device);
                 vkDestroyDescriptorSetLayout( m_device, m_drawImageDescriptorLayout, nullptr);
             });
@@ -469,17 +497,31 @@ export namespace opn {
         }
 
         void destroySwapchain() {
-            if (m_swapchain) {
-                vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-                m_swapchain = nullptr;
+            if( m_device != VK_NULL_HANDLE ) {
+                vkDeviceWaitIdle( m_device );
             }
 
-            for (const auto view: m_swapchainImageViews) {
-                vkDestroyImageView(m_device, view, nullptr);
+            if( m_swapchain ) {
+                for( const auto view : m_swapchainImageViews ) {
+                    if( view != VK_NULL_HANDLE ) {
+                        vkDestroyImageView( m_device
+                                          , view
+                                          , nullptr
+                        );
+                    }
+                }
+                m_swapchainImageViews.clear();
+
+
+                vkDestroySwapchainKHR( m_device
+                                     , m_swapchain
+                                     , nullptr
+                );
+                m_swapchain = VK_NULL_HANDLE;
             }
-            m_swapchainImageViews.clear();
+
             m_swapchainImages.clear();
-        };
+        }
 
     public:
         void init() final {
@@ -494,6 +536,7 @@ export namespace opn {
 
             createDevices();
             createAllocator();
+            createDescriptors();
             createSwapchain();
 
             opn::logInfo("VulkanBackend", "Creating queues...");
@@ -503,7 +546,6 @@ export namespace opn {
             createCommands();
             createSyncObjects();
 
-            createDescriptors();
             createPipelines();
 
             opn::logInfo("VulkanBackend", "Initialization complete.");
@@ -514,17 +556,23 @@ export namespace opn {
             if (m_isInitialized.exchange(false)) {
                 vkDeviceWaitIdle(m_device);
 
-                destroySwapchain();
-
-                if (m_drawImage.imageView) {
-                    vkDestroyImageView(m_device, m_drawImage.imageView, nullptr);
+                if( m_drawImage.imageView ) {
+                    vkDestroyImageView( m_device
+                                      , m_drawImage.imageView
+                                      , nullptr
+                    );
                     m_drawImage.imageView = VK_NULL_HANDLE;
                 }
-                if (m_drawImage.image) {
-                    vmaDestroyImage(m_vmaAllocator, m_drawImage.image, m_drawImage.allocation);
+                if( m_drawImage.image ) {
+                    vmaDestroyImage( m_vmaAllocator
+                                   , m_drawImage.image
+                                   , m_drawImage.allocation
+                    );
                     m_drawImage.image = VK_NULL_HANDLE;
                     m_drawImage.allocation = VK_NULL_HANDLE;
                 }
+
+                destroySwapchain();
 
                 for (const auto &i: m_frameData) {
                     vkDestroyCommandPool(m_device, i.commandPool, nullptr);
@@ -573,7 +621,9 @@ export namespace opn {
             );
 
             uint32_t imageIndex;
+            VkResult acquireNextImageResult;
             vkUtil::vkCheck(
+                acquireNextImageResult =
                 vkAcquireNextImageKHR( m_device
                                      , m_swapchain
                                      , UINT64_MAX
@@ -583,7 +633,18 @@ export namespace opn {
                                      , "vkAcquireNextImageKHR"
             );
 
-            if (m_imageInFlightFences[imageIndex] != VK_NULL_HANDLE) {
+            if( acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR ) {
+                vkDeviceWaitIdle( m_device );
+                createSwapchain();
+                return;
+            }
+
+            if( imageIndex >= m_swapchainImages.size() ) {
+                opn::logError( "VulkanBackend", "Invalid swapchain image index: {}", imageIndex );
+                return;
+            }
+
+            if( m_imageInFlightFences[ imageIndex ] != VK_NULL_HANDLE ) {
                 vkWaitForFences( m_device
                                , 1
                                , &m_imageInFlightFences[imageIndex]
@@ -591,7 +652,7 @@ export namespace opn {
                                , UINT64_MAX
                 );
             }
-            m_imageInFlightFences[imageIndex] = getCurrentFrame().m_inFlightFence;
+            m_imageInFlightFences[ imageIndex ] = getCurrentFrame().m_inFlightFence;
 
             vkUtil::vkCheck(
                 vkResetFences( m_device
@@ -602,7 +663,6 @@ export namespace opn {
             getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
             //// Command buffer begin
-
             VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
             vkUtil::vkCheck(
                 vkResetCommandBuffer( cmd, 0 ),
@@ -662,7 +722,6 @@ export namespace opn {
             );
 
             // submit
-
             VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info(cmd);
 
             VkSemaphoreSubmitInfo waitInfo =
@@ -687,6 +746,7 @@ export namespace opn {
                               , "vkQueueSubmit2"
             );
 
+            // present
             VkPresentInfoKHR presentInfo = {};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             presentInfo.pNext = nullptr;
@@ -698,11 +758,26 @@ export namespace opn {
 
             presentInfo.pImageIndices = &imageIndex;
 
+            VkResult presentResult;
             vkUtil::vkCheck(
+                presentResult =
                 vkQueuePresentKHR( m_graphicsQueue
                                  , &presentInfo )
                                  , "vkQueuePresentKHR"
             );
+
+            if( presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+                presentResult == VK_SUBOPTIMAL_KHR ) {
+                vkDeviceWaitIdle( m_device );
+                createSwapchain();
+            }
+
+            auto currentDimensions = m_windowHandle->dimension;
+            if ( currentDimensions.width != m_swapchainExtent.width ||
+                 currentDimensions.height != m_swapchainExtent.height ) {
+                vkDeviceWaitIdle( m_device );
+                createSwapchain();
+            }
 
             m_frameNumber++;
 
