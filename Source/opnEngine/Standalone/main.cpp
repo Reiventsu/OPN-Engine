@@ -1,7 +1,5 @@
-#include <iostream>
 #include <exception>
-#include <thread>
-#include <typeinfo>
+#include <iostream>
 
 import opn.System.JobDispatcher;
 import opn.System.ServiceManager;
@@ -39,7 +37,7 @@ int main() {
             ServiceManager::updateAll(dt);
         }
 
-        opn::logInfo("Main", "Engine Shutting down. {}", typeid(ServiceManager).name());
+        opn::logInfo("Main", "Engine Shutting down.");
         ServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
 
