@@ -12,19 +12,27 @@ export module opn.Utils.Logging;
 
 // TODO Add colours to logger for different levels
 
+#define OPN_COL_RESET   "\x1b[0m"
+#define OPN_COL_GRAY    "\x1b[90m"
+#define OPN_COL_CYAN    "\x1b[36m"
+#define OPN_COL_GREEN   "\x1b[32m"
+#define OPN_COL_YELLOW  "\x1b[33m"
+#define OPN_COL_RED     "\x1b[31m"
+#define OPN_COL_BOLD_RED "\x1b[1;31m"
+
 // Defines all forms of logging code will automatically
 // generate new levels if added to this X macro list.
-#define LOG_LEVELS                 \
-    X(Trace,    "TRACE", 0, false) \
-    X(Debug,    "DEBUG", 1, false) \
-    X(Info,     "INFO",  2, false) \
-    X(Warning,  "WARN",  3, true)  \
-    X(Error,    "ERROR", 4, true)  \
-    X(Critical, "CRIT",  5, true)
+#define LOG_LEVELS                                   \
+    X(Trace,    "TRACE", 0, false, OPN_COL_GRAY)     \
+    X(Debug,    "DEBUG", 1, false, OPN_COL_CYAN)     \
+    X(Info,     "INFO",  2, false, OPN_COL_GREEN)    \
+    X(Warning,  "WARN",  3, true,  OPN_COL_YELLOW)   \
+    X(Error,    "ERROR", 4, true,  OPN_COL_RED)      \
+    X(Critical, "CRIT",  5, true,  OPN_COL_BOLD_RED)
 
 export namespace opn {
     enum class eLogLevel : int8_t {
-#define X(name, str, val, showLoc) name = val,
+#define X(name, str, val, showLoc, col) name = val,
         LOG_LEVELS
 #undef X
     };
@@ -74,14 +82,15 @@ export namespace opn {
             const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - now_seconds).count();
 
             std::lock_guard lock(log_mutex);
+            std::string_view colour = levelToColour(_level);
 #ifdef NDEBUG
-            std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {}",
-                         now_seconds, ms, levelToString(_level), _category, message
+            std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {}{}",
+                         colour, now_seconds, ms, levelToString(_level), _category, message, OPN_COL_RESET
             );
 #else
             bool shouldShowLoc = false;
             switch (_level) {
-#define X(name, str, val, showLoc) case eLogLevel::name: shouldShowLoc = showLoc; break;
+#define X(name, str, val, showLoc, col) case eLogLevel::name: shouldShowLoc = showLoc; break;
                 LOG_LEVELS
 #undef X
             }
@@ -92,12 +101,12 @@ export namespace opn {
                     filename = filename.substr(pos + 1);
                 }
 
-                std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {} ({}:{})",
-                             now_seconds, ms, levelToString(_level), _category, message, filename, _loc.line()
+                std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {} ({}:{}){}",
+                             colour, now_seconds, ms, levelToString(_level), _category, message, filename, _loc.line(), OPN_COL_RESET
                 );
             } else {
-                std::println(std::cerr, "[{:%H:%M:%S}.{:03d}] [{}] [{}] {}",
-                             now_seconds, ms, levelToString(_level), _category, message
+                std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {}{}",
+                             colour, now_seconds, ms, levelToString(_level), _category, message, OPN_COL_RESET
                 );
             }
 #endif
@@ -113,9 +122,18 @@ export namespace opn {
 #endif
         };
 
+        static std::string_view levelToColour(const eLogLevel _level) noexcept {
+            switch (_level) {
+#define X(name, str, val, showLoc, col) case eLogLevel::name: return col;
+                LOG_LEVELS
+#undef X
+                default: return OPN_COL_RESET;
+            }
+        }
+
         static std::string_view levelToString(const eLogLevel _level) noexcept {
             switch (_level) {
-#define X(name, str, val, showLoc) case eLogLevel::name: return str;
+#define X(name, str, val, showLoc, col) case eLogLevel::name: return str;
                 LOG_LEVELS
 #undef X
                 default: return "UNKNOWN";
@@ -140,6 +158,6 @@ export namespace opn {
         }                                                         \
     }
 
-#define X(name, str, val, showLoc) OPN_GENERATE_LOG_FUNC(name, name)
+#define X(name, str, val, showLoc, col) OPN_GENERATE_LOG_FUNC(name, name)
 LOG_LEVELS
 #undef X
