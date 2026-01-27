@@ -1,5 +1,24 @@
+#include <chrono>
 #include <exception>
 #include <iostream>
+#include <thread>
+
+// all my homies hate the windows terminal
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
+void initTerminal() {
+#ifdef _WIN32
+    HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hOut, dwMode);
+#endif
+}
 
 import opn.System.JobDispatcher;
 import opn.System.ServiceManager;
@@ -18,6 +37,9 @@ using AppServices = opn::SystemTypeList<
 using ServiceManager = opn::ServiceManager_Impl< AppServices >;
 
 int main() {
+#ifdef _WIN32
+    initTerminal();
+#endif
     try {
         opn::logInfo( "Main", "Starting application..." );
 
