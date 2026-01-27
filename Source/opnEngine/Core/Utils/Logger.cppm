@@ -19,15 +19,16 @@ export module opn.Utils.Logging;
 #define OPN_COL_YELLOW  "\x1b[33m"
 #define OPN_COL_RED     "\x1b[31m"
 #define OPN_COL_BOLD_RED "\x1b[1;31m"
+#define OPN_COL_LIGHT_GRAY  "\x1b[37m"
 
 // Defines all forms of logging code will automatically
 // generate new levels if added to this X macro list.
-#define LOG_LEVELS                                   \
-    X(Trace,    "TRACE", 0, false, OPN_COL_GRAY)     \
-    X(Debug,    "DEBUG", 1, false, OPN_COL_CYAN)     \
-    X(Info,     "INFO",  2, false, OPN_COL_GREEN)    \
-    X(Warning,  "WARN",  3, true,  OPN_COL_YELLOW)   \
-    X(Error,    "ERROR", 4, true,  OPN_COL_RED)      \
+#define LOG_LEVELS                                     \
+    X(Trace,    "TRACE", 0, false, OPN_COL_GRAY)       \
+    X(Debug,    "DEBUG", 1, false, OPN_COL_CYAN)       \
+    X(Info,     "INFO",  2, false, OPN_COL_LIGHT_GRAY) \
+    X(Warning,  "WARN",  3, true,  OPN_COL_YELLOW)     \
+    X(Error,    "ERROR", 4, true,  OPN_COL_RED)        \
     X(Critical, "CRIT",  5, true,  OPN_COL_BOLD_RED)
 
 export namespace opn {

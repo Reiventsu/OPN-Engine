@@ -37,6 +37,11 @@ int main() {
             ServiceManager::updateAll(dt);
         }
 
+        opn::logError("test","error");
+        opn::logDebug("test", "debug");
+        opn::logWarning("test", "warning");
+        opn::logCritical("test", "critical");
+
         opn::logInfo("Main", "Engine Shutting down.");
         ServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
