@@ -7,6 +7,7 @@ module;
 #include <deque>
 #include <filesystem>
 #include <functional>
+#include <thread>
 
 #include "vk_mem_alloc.h"
 
@@ -213,52 +214,77 @@ export namespace opn {
         }
 
         void createSwapchain() {
-            if (!m_windowHandle) {
-                logCritical("VulkanBackend", "No window provided to VulkanBackend!");
-                throw std::runtime_error("No window provided to VulkanBackend!");
-            }
+            if( m_windowHandle == nullptr ) return;
 
-            auto dimensions = m_windowHandle->dimension;
+            auto [ width, height ] = m_windowHandle->dimension;
+            if( width == 0 || height == 0 ) return;
 
-            if( dimensions.width == 0 || dimensions.height == 0 )
-                return;
+            vkDeviceWaitIdle( m_device );
 
-            VkSwapchainKHR oldChain = m_swapchain;
-
-            vkb::SwapchainBuilder swapchainBuilder{m_chosenDevice, m_device, m_surface};
-
+            vkb::SwapchainBuilder swapchainBuilder{ m_chosenDevice, m_device, m_surface };
             m_swapchainImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
             auto vkbSwapChainRet = swapchainBuilder
-                    .set_desired_format(VkSurfaceFormatKHR{
-                        .format = m_swapchainImageFormat,
-                        .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-                    })
-                    .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-                    .set_desired_extent(dimensions.width, dimensions.height)
-                    .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-                    .set_old_swapchain( oldChain )
-                    .build();
+            .set_desired_format( VkSurfaceFormatKHR{
+                .format = m_swapchainImageFormat,
+                .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+            } )
+            .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+            .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+            .set_old_swapchain( m_swapchain )
+            .build();
 
-            if (!vkbSwapChainRet) {
-                opn::logCritical("VulkanBackend", "Failed to create swapchain!");
-                throw std::runtime_error("Failed to create swapchain!");
-            }
+            if ( !vkbSwapChainRet ) return;
 
             vkb::Swapchain vkbSwapChain = vkbSwapChainRet.value();
-            m_swapchainExtent           = vkbSwapChain.extent;
+
+            if( vkbSwapChainRet->extent.width == 0 || vkbSwapChainRet->extent.height == 0 ) {
+                vkb::destroy_swapchain( vkbSwapChain );
+                return;
+            }
+
+            for( const auto view : m_swapchainImageViews ) {
+                if( view != VK_NULL_HANDLE ) {
+                    vkDestroyImageView( m_device
+                                      , view
+                                      , nullptr
+                    );
+                }
+            }
+            m_swapchainImageViews.clear();
+
+            for (const auto semaphore : m_renderFinishedSemaphores) {
+                if (semaphore != VK_NULL_HANDLE) {
+                    vkDestroySemaphore(m_device, semaphore, nullptr);
+                }
+            }
+            m_renderFinishedSemaphores.clear();
+
+            if (m_swapchain != VK_NULL_HANDLE) {
+                vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+            }
+
             m_swapchain                 = vkbSwapChain.swapchain;
+            m_swapchainExtent           = vkbSwapChain.extent;
             m_swapchainImages           = vkbSwapChain.get_images().value();
             m_swapchainImageViews       = vkbSwapChain.get_image_views().value();
+
+            const size_t imageCount = m_swapchainImages.size();
+            m_renderFinishedSemaphores.assign(imageCount, VK_NULL_HANDLE);
+            m_imageInFlightFences.assign(imageCount, VK_NULL_HANDLE);
+
+            VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
+            for (size_t i = 0; i < imageCount; i++) {
+                vkUtil::vkCheck(
+                    vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphores[i]),
+                    "vkCreateSemaphore: renderFinished"
+                );
+            }
 
             logInfo("VulkanBackend", "Swapchain created: {}x{}.",
                     m_swapchainExtent.width, m_swapchainExtent.height);
 
-            VkExtent3D drawImageExtent = {
-                m_windowHandle->dimension.width,
-                m_windowHandle->dimension.height,
-                1
-            };
+            VkExtent3D drawImageExtent = { m_swapchainExtent.width, m_swapchainExtent.height, 1 };
 
             if( m_drawImage.imageView != VK_NULL_HANDLE ) {
                 vkDestroyImageView( m_device
@@ -338,11 +364,6 @@ export namespace opn {
                                       , nullptr
                 );
             }
-
-            if( oldChain != VK_NULL_HANDLE ) {
-                vkDestroySwapchainKHR( m_device, oldChain, nullptr );
-            }
-
         }
 
         void createCommands() {
@@ -387,19 +408,8 @@ export namespace opn {
                 );
             }
 
-            const size_t imageCount = m_swapchainImages.size();
-            m_imageInFlightFences.resize( imageCount, VK_NULL_HANDLE );
-            m_renderFinishedSemaphores.resize( imageCount );
-
-            for (auto &semaphore : m_renderFinishedSemaphores) {
-                vkUtil::vkCheck(
-                  vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &semaphore),
-                  "vkCreateSemaphore: renderFinished"
-                );
-            }
-
-            opn::logInfo("VulkanBackend", "Sync objects created: {} frames, {} swapchain images.",
-                 FRAME_OVERLAP, imageCount );
+            opn::logInfo("VulkanBackend", "Sync objects created for {} frames.",
+                 FRAME_OVERLAP );
         }
 
         void createDescriptors() {
@@ -501,22 +511,15 @@ export namespace opn {
                 vkDeviceWaitIdle( m_device );
             }
 
-            if( m_swapchain ) {
-                for( const auto view : m_swapchainImageViews ) {
-                    if( view != VK_NULL_HANDLE ) {
-                        vkDestroyImageView( m_device
-                                          , view
-                                          , nullptr
-                        );
-                    }
+            for( const auto view : m_swapchainImageViews ) {
+                if( view != VK_NULL_HANDLE ) {
+                    vkDestroyImageView( m_device, view, nullptr );
                 }
-                m_swapchainImageViews.clear();
+            }
+            m_swapchainImageViews.clear();
 
-
-                vkDestroySwapchainKHR( m_device
-                                     , m_swapchain
-                                     , nullptr
-                );
+            if( m_swapchain ) {
+                vkDestroySwapchainKHR( m_device, m_swapchain, nullptr );
                 m_swapchain = VK_NULL_HANDLE;
             }
 
@@ -605,11 +608,17 @@ export namespace opn {
         void update( float _deltaTime ) final {
             if (m_isInitialized == false) return;
 
+            if( m_windowHandle->dimension.width == 0 || m_windowHandle->dimension.height == 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                return;
+            }
+
             draw();
         }
 
         void draw() final {
-            if (m_swapchain == VK_NULL_HANDLE || m_swapchainImages.empty()) return;
+
+            if( m_swapchain == VK_NULL_HANDLE || m_windowHandle->dimension.width == 0 ) return;
 
             vkUtil::vkCheck(
                 vkWaitForFences( m_device
@@ -621,65 +630,36 @@ export namespace opn {
             );
 
             uint32_t imageIndex;
-            VkResult acquireNextImageResult;
-            vkUtil::vkCheck(
-                acquireNextImageResult =
-                vkAcquireNextImageKHR( m_device
-                                     , m_swapchain
-                                     , UINT64_MAX
-                                     , getCurrentFrame().m_imageAvailableSemaphore
-                                     , VK_NULL_HANDLE
-                                     , &imageIndex)
-                                     , "vkAcquireNextImageKHR"
+            VkResult acquireNextImageResult = vkAcquireNextImageKHR( m_device
+                                                                   , m_swapchain
+                                                                   , UINT64_MAX
+                                                                   , getCurrentFrame().m_imageAvailableSemaphore
+                                                                   , VK_NULL_HANDLE
+                                                                   , &imageIndex
             );
 
             if( acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR ) {
-                vkDeviceWaitIdle( m_device );
                 createSwapchain();
                 return;
             }
 
-            if( imageIndex >= m_swapchainImages.size() ) {
-                opn::logError( "VulkanBackend", "Invalid swapchain image index: {}", imageIndex );
-                return;
-            }
-
-            if( m_imageInFlightFences[ imageIndex ] != VK_NULL_HANDLE ) {
-                vkWaitForFences( m_device
-                               , 1
-                               , &m_imageInFlightFences[imageIndex]
-                               , VK_TRUE
-                               , UINT64_MAX
-                );
-            }
-            m_imageInFlightFences[ imageIndex ] = getCurrentFrame().m_inFlightFence;
-
+            // Reset fences now that we are proceeding
             vkUtil::vkCheck(
                 vkResetFences( m_device
-                             , 1
-                             , &getCurrentFrame().m_inFlightFence)
-                             , "resetFences"
+                    , 1
+                    , &getCurrentFrame().m_inFlightFence )
+                    , "resetFences"
             );
+
             getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
-            //// Command buffer begin
             VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-            vkUtil::vkCheck(
-                vkResetCommandBuffer( cmd, 0 ),
-                "vkResetCommandBuffer"
-            );
+            vkUtil::vkCheck(vkResetCommandBuffer( cmd, 0 ), "vkResetCommandBuffer");
 
             VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-            m_drawImageExtent.width = m_drawImage.imageExtent.width;
-            m_drawImageExtent.height = m_drawImage.imageExtent.height;
-
-            vkUtil::vkCheck(
-                vkBeginCommandBuffer( cmd
-                                    , &cmdBeginInfo )
-                                    , "vkBeginCommandBuffer"
-            );
+            vkUtil::vkCheck(vkBeginCommandBuffer( cmd, &cmdBeginInfo ), "vkBeginCommandBuffer");
 
             vkUtil::transition_image( cmd
                                     , m_drawImage.image
@@ -687,51 +667,46 @@ export namespace opn {
                                     , VK_IMAGE_LAYOUT_GENERAL
             );
 
-            // Draw background here
-            drawBackground(cmd);
+            drawBackground( cmd );
 
             vkUtil::transition_image( cmd
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_GENERAL
                                     , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-            );
-
+             );
             vkUtil::transition_image( cmd
-                                    , m_swapchainImages[ imageIndex ]
+                                    , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             );
 
             vkUtil::copy_image_to_image( cmd
                                        , m_drawImage.image
-                                       , m_swapchainImages[ imageIndex ]
-                                       , m_drawImageExtent
+                                       , m_swapchainImages[imageIndex]
+                                       , {m_drawImage.imageExtent.width, m_drawImage.imageExtent.height}
                                        , m_swapchainExtent
             );
 
-
             vkUtil::transition_image( cmd
-                , m_swapchainImages[ imageIndex ]
-                , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+                                    , m_swapchainImages[imageIndex]
+                                    , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                                    , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+             );
+
+            vkUtil::vkCheck(vkEndCommandBuffer( cmd ), "vkEndCommandBuffer");
+
+            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info( cmd );
+
+            VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+                getCurrentFrame().m_imageAvailableSemaphore
             );
 
-            vkUtil::vkCheck(
-                vkEndCommandBuffer( cmd ),
-                "vkEndCommandBuffer"
+            // Use the class member semaphore here
+            VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(
+                VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+                m_renderFinishedSemaphores[imageIndex]
             );
-
-            // submit
-            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info(cmd);
-
-            VkSemaphoreSubmitInfo waitInfo =
-                vkInit::semaphore_submit_info( VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR
-                                             , getCurrentFrame().m_imageAvailableSemaphore
-                );
-            VkSemaphoreSubmitInfo signalInfo =
-                vkInit::semaphore_submit_info( VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT
-                                             , m_renderFinishedSemaphores[imageIndex]
-                );
 
             VkSubmitInfo2 submitInfo = vkInit::submit_info( &cmdSubmitInfo
                                                           , &signalInfo
@@ -746,41 +721,22 @@ export namespace opn {
                               , "vkQueueSubmit2"
             );
 
-            // present
-            VkPresentInfoKHR presentInfo = {};
-            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            presentInfo.pNext = nullptr;
-            presentInfo.pSwapchains = &m_swapchain;
-            presentInfo.swapchainCount = 1;
+            VkPresentInfoKHR presentInfo = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+            presentInfo.pSwapchains      = &m_swapchain;
+            presentInfo.swapchainCount   = 1;
 
-            presentInfo.pWaitSemaphores = &m_renderFinishedSemaphores[imageIndex];
+            presentInfo.pWaitSemaphores    = &m_renderFinishedSemaphores[imageIndex];
             presentInfo.waitSemaphoreCount = 1;
 
             presentInfo.pImageIndices = &imageIndex;
 
-            VkResult presentResult;
-            vkUtil::vkCheck(
-                presentResult =
-                vkQueuePresentKHR( m_graphicsQueue
-                                 , &presentInfo )
-                                 , "vkQueuePresentKHR"
-            );
+            VkResult presentResult = vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 
-            if( presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
-                presentResult == VK_SUBOPTIMAL_KHR ) {
-                vkDeviceWaitIdle( m_device );
-                createSwapchain();
-            }
-
-            auto currentDimensions = m_windowHandle->dimension;
-            if ( currentDimensions.width != m_swapchainExtent.width ||
-                 currentDimensions.height != m_swapchainExtent.height ) {
-                vkDeviceWaitIdle( m_device );
+            if( presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR ) {
                 createSwapchain();
             }
 
             m_frameNumber++;
-
         }
 
         void drawBackground( VkCommandBuffer _cmd ) {
@@ -801,8 +757,8 @@ export namespace opn {
             );
 
             vkCmdDispatch( _cmd
-                         , std::ceil( m_drawImageExtent.width / 16.0)
-                         , std::ceil( m_drawImageExtent.height / 16.0 )
+                         , std::ceil( m_drawImage.imageExtent.width / 16.0)
+                         , std::ceil( m_drawImage.imageExtent.height / 16.0 )
                          , 1
             );
         }
