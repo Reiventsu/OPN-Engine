@@ -26,8 +26,8 @@ export namespace opn {
             if (auto *ws = WindowSystem::getService()) {
                 m_Backend.bindToWindow(*ws);
             } else {
-                opn::logCritical("Rendering", "Failed to bind rendering backend, window system not found.");
-                throw std::runtime_error("Service dependency not satisfied: WindowSystem.");
+                opn::logCritical("Rendering", "Failed to bind rendering backend, window system not found." );
+                throw std::runtime_error("Service dependency not satisfied: WindowSystem." );
             }
         };
 

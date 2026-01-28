@@ -10,11 +10,17 @@
 #include <windows.h>
 
 void initTerminal() {
-    HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
+    // Enable ANSI for output
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
+
+    HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+    GetConsoleMode(hErr, &dwMode);
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    SetConsoleMode(hErr, dwMode);
 }
 #endif
 
