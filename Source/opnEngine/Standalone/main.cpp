@@ -8,17 +8,15 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#endif
 
 void initTerminal() {
-#ifdef _WIN32
     HANDLE hOut = GetStdHandle(STD_ERROR_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hOut, dwMode);
-#endif
 }
+#endif
 
 import opn.System.JobDispatcher;
 import opn.System.ServiceManager;
