@@ -109,10 +109,7 @@ export namespace opn {
             VkFence fence{ };
             VkCommandBuffer commandBuffer{ };
             VkCommandPool commandPool{ };
-
-            void submit(std::function<void(VkCommandBuffer _command)>&& function) {}
         } m_immediate;
-
 
         // -- Implementation --
 
@@ -407,8 +404,8 @@ export namespace opn {
 
             for (auto &i: m_frameData) {
                 vkUtil::vkCheck(
-                    vkCreateCommandPool(m_device, &commandPoolInfo, nullptr, &i.commandPool),
-                    "vkCreateCommandPool"
+                    vkCreateCommandPool( m_device, &commandPoolInfo, nullptr, &i.commandPool )
+                                       , "vkCreateCommandPool"
                 );
 
                 VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(
@@ -416,10 +413,28 @@ export namespace opn {
                 );
 
                 vkUtil::vkCheck(
-                    vkAllocateCommandBuffers(m_device, &cmdAllocInfo, &i.commandBuffer),
-                    "vkAllocateCommandBuffers"
+                    vkAllocateCommandBuffers( m_device, &cmdAllocInfo, &i.commandBuffer )
+                                            , "vkAllocateCommandBuffers"
                 );
             }
+
+            vkUtil::vkCheck(
+                vkCreateCommandPool( m_device, &commandPoolInfo, nullptr, &m_immediate.commandPool )
+                                   , "vkCreateCommandPool"
+            );
+
+            VkCommandBufferAllocateInfo cmdAllocInfo =
+                vkInit::command_buffer_allocate_info( m_immediate.commandPool, 1 );
+
+            vkUtil::vkCheck(
+                vkAllocateCommandBuffers( m_device, &cmdAllocInfo, &m_immediate.commandBuffer )
+                                        , "vkAllocateCommandBuffers"
+            );
+
+            m_mainDeletionQueue.pushFunction( [ this ] {
+                vkDestroyCommandPool( m_device, m_immediate.commandPool, nullptr );
+            } );
+
             opn::logInfo("VulkanBackend", "Command pools created.");
         }
 
@@ -440,6 +455,15 @@ export namespace opn {
                     "vkCreateSemaphore: imageAvailable"
                 );
             }
+
+            vkUtil::vkCheck(
+                vkCreateFence( m_device, &fenceCreateInfo, nullptr, &m_immediate.fence )
+                             , "vkCreateFence"
+            );
+
+            m_mainDeletionQueue.pushFunction( [ this ] {
+                vkDestroyFence( m_device, m_immediate.fence, nullptr );
+            } );
 
             opn::logInfo("VulkanBackend", "Sync objects created for {} frames.",
                  FRAME_OVERLAP );
@@ -792,6 +816,56 @@ export namespace opn {
             m_frameNumber++;
         }
 
+        void submitImmediate( std::function< void( VkCommandBuffer _command ) >&& _function ) {
+
+            opn::logTrace("VulkanBackend", "Immediate command received.");
+
+            vkUtil::vkCheck(
+                vkResetFences( m_device, 1, &m_immediate.fence)
+                             , "vkResetFences"
+            );
+
+            vkUtil::vkCheck(
+                vkResetCommandBuffer( m_immediate.commandBuffer, 0 )
+                                    , "vkResetCommandBuffer"
+            );
+
+            VkCommandBuffer command = m_immediate.commandBuffer;
+            VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info();
+
+            vkUtil::vkCheck(
+                vkBeginCommandBuffer( command, &cmdBeginInfo )
+                                    , "vkBeginCommandBuffer"
+            );
+
+            opn::logTrace("VulkanBackend", "Submit command executing.");
+            _function(command);
+            opn::logTrace("VulkanBackend", "Submit command executed.");
+
+            vkUtil::vkCheck(
+                vkEndCommandBuffer( command )
+                                  , "vkEndCommandBuffer"
+            );
+
+            VkCommandBufferSubmitInfo cmdSubmitInfo =
+                vkInit::command_buffer_submit_info( command );
+
+            VkSubmitInfo2 submitInfo =
+                vkInit::submit_info( &cmdSubmitInfo, nullptr, nullptr );
+
+            vkUtil::vkCheck(
+                vkQueueSubmit2( m_graphicsQueue, 1, &submitInfo, nullptr )
+                              , "vkQueueSubmit2"
+            );
+
+            vkUtil::vkCheck(
+                vkWaitForFences( m_device, 1, &m_immediate.fence, true, 99999999 )
+                               , "vkWaitForFences"
+            );
+
+            opn::logTrace("VulkanBackend", "Submit finished.");
+        }
+
         [[nodiscard]] bool shouldRender() const {
             return m_swapchain != VK_NULL_HANDLE &&
                    m_windowHandle != nullptr &&
@@ -799,14 +873,14 @@ export namespace opn {
                    m_windowHandle->dimension.height > 0;
         }
 
-        void drawBackground( VkCommandBuffer _cmd ) {
+        void drawBackground( VkCommandBuffer _command ) {
 
-            vkCmdBindPipeline( _cmd
+            vkCmdBindPipeline( _command
                              , VK_PIPELINE_BIND_POINT_COMPUTE
                              , m_gradientPipeline
             );
 
-            vkCmdBindDescriptorSets( _cmd
+            vkCmdBindDescriptorSets( _command
                                    , VK_PIPELINE_BIND_POINT_COMPUTE
                                    , m_gradientPipelineLayout
                                    , 0
@@ -816,22 +890,22 @@ export namespace opn {
                                    , nullptr
             );
 
-            vkCmdDispatch( _cmd
+            vkCmdDispatch( _command
                          , std::ceil( m_drawImage.imageExtent.width / 16.0)
                          , std::ceil( m_drawImage.imageExtent.height / 16.0 )
                          , 1
             );
         }
 
-        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) {
-            logInfo("VulkanBackend", "Binding to window...");
+        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) override {
+            opn::logInfo( "VulkanBackend", "Binding to window..." );
 
             m_windowHandle = &_windowProvider;
-            m_surface = _windowProvider.createSurface(m_instance);
+            m_surface = _windowProvider.createSurface( m_instance );
 
-            if (!m_surface) {
-                opn::logCritical("VulkanBackend", "Failed to create window surface!");
-                throw std::runtime_error("Failed to create window surface!");
+            if( !m_surface ) {
+                opn::logCritical( "VulkanBackend", "Failed to create window surface!" );
+                throw std::runtime_error( "Failed to create window surface!" );
             }
 
             completeInit();
