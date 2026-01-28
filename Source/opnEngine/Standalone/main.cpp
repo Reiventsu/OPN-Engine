@@ -11,6 +11,7 @@
 
 void initTerminal() {
     // Enable ANSI for output
+
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);

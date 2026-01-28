@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 4.1)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
+if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+    find_program(CMAKE_RC_COMPILER NAMES rc)
+    if(NOT CMAKE_RC_COMPILER)
+        message(FATAL_ERROR "Could not find rc.exe. Please install Windows SDK or add rc.exe location to PATH")
+    endif()
+endif()
+
 project(OPN_Engine
         VERSION 0.0.1
         LANGUAGES CXX

@@ -19,7 +19,6 @@ module;
 #include <source_location>
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_enum_string_helper.h>
 #include <vk_mem_alloc.h>
 
 #include "hlsl++.h"
@@ -148,8 +147,8 @@ export namespace vkUtil {
                 filename = filename.substr(pos + 1);
             }
 
-            std::println(std::cerr, "[VULKAN ERROR] {}:{} - {} failed: {}",
-                         filename, _ctx.location.line(), _ctx.operation, string_VkResult(_result));
+            std::println(std::cerr, "[VULKAN ERROR] ( {}:{} ) - {} failed",
+                         filename, _ctx.location.line(), _ctx.operation);
             std::abort();
         }
     }

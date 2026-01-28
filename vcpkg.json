@@ -1,0 +1,24 @@
+{
+  "name" : "opn-engine",
+  "version-string" : "1.0.0",
+  "builtin-baseline" : "8eafd12d19cbc42a4d5c34b5f2ce96d62e6ee9ff",
+  "dependencies" : [ {
+    "name" : "glfw3",
+    "version>=" : "3.4#1"
+  }, {
+    "name" : "vcpkg-cmake-config",
+    "version>=" : "2024-05-23"
+  }, {
+    "name" : "vcpkg-cmake",
+    "version>=" : "2024-04-23"
+  }, {
+    "name" : "volk",
+    "version>=" : "1.4.328.0"
+  }, {
+    "name" : "vulkan-headers",
+    "version>=" : "1.4.328.0"
+  }, {
+    "name" : "vulkan-memory-allocator",
+    "version>=" : "3.3.0"
+  } ]
+}
