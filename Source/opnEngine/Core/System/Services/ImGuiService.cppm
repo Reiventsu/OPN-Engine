@@ -1,5 +1,6 @@
 module;
 
+#include <imgui.h>
 
 // For now not used but in the future I may wanna decouple ImGui into its own thing
 

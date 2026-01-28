@@ -2,9 +2,27 @@ add_subdirectory(vk-bootstrap)
 add_subdirectory(HLSL++)
 add_subdirectory(VulkanMemoryAllocator)
 
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ImGui)
+
+add_library(imgui INTERFACE)
+target_include_directories(imgui INTERFACE
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+)
+target_sources(imgui INTERFACE
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_dx12.cpp
+)
+
 add_library(Third-Party INTERFACE)
 target_link_libraries(Third-Party INTERFACE
         vk-bootstrap
         HLSL++
         VulkanMemoryAllocator
+        imgui
 )

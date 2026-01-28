@@ -33,8 +33,8 @@ import opn.Utils.Logging;
 import opn.Renderer.RenderPackage;
 
 using AppServices = opn::SystemTypeList<
-    opn::Time,         // Mandatory service
-    opn::WindowSystem, // Mandatory service
+    opn::Time,                           // Mandatory service
+    opn::WindowSystem,                   // Mandatory service
     opn::Rendering< opn::VulkanImpl >,
     opn::AssetSystem
 >;

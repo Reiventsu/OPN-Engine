@@ -31,4 +31,5 @@ target_link_libraries(Services
         WindowingInterface
         RenderInterface
         glfw
+        imgui
 )

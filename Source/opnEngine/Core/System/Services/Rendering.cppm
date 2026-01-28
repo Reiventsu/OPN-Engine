@@ -8,7 +8,6 @@ import opn.System.ServiceInterface;
 import opn.Utils.Logging;
 import opn.System.Service.WindowSystem;
 
-
 export namespace opn {
     template<typename T>
     concept ValidRenderer = std::derived_from<T, RenderBackend>;
