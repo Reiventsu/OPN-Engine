@@ -36,6 +36,7 @@ using AppServices = opn::SystemTypeList<
     opn::Time,                           // Mandatory service
     opn::WindowSystem,                   // Mandatory service
     opn::Rendering< opn::VulkanImpl >,
+    opn::ImGuiService,
     opn::AssetSystem
 >;
 
@@ -56,6 +57,12 @@ int main() {
 
         auto &time = ServiceManager::getService<opn::Time>();
         auto &window = ServiceManager::getService<opn::WindowSystem>();
+
+        opn::logCritical("test","test");
+        opn::logDebug("test", "test");
+        opn::logInfo("test", "test");
+        opn::logWarning("test", "test");
+        opn::logError("test", "test");
 
         while (!window.shouldClose()) {
             window.pollEvents();

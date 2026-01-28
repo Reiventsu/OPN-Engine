@@ -16,6 +16,10 @@ export namespace opn {
     class Rendering final : public Service<Rendering<Backend> > {
         Backend m_Backend{};
 
+    public:
+        Backend &getBackend() { return m_Backend; }
+        const Backend &getBackend() const { return m_Backend; }
+
     protected:
         void onInit() override {
             m_Backend.init();

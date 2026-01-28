@@ -8,19 +8,36 @@ target_sources(RenderInterface
 
 target_link_libraries(RenderInterface PUBLIC WindowingInterface)
 
-add_library(Renderer)
+add_library(RenderHelpers)
 
-target_link_libraries(Renderer
+target_sources(RenderHelpers
         PUBLIC
-        RenderInterface
-        WindowingInterface
-        CoreUtils
+        FILE_SET CXX_MODULES FILES
+        Vulkan/vkUtil.cppm
+        Vulkan/vkInit.cppm
+        Vulkan/vkTypes.cppm
+        Vulkan/vkImage.cppm
+        Vulkan/vkDescriptors.cppm
+        Vulkan/vkPipeline.cppm
+)
 
+target_link_libraries(RenderHelpers
+        PUBLIC
+        CoreUtils
         Vulkan::Vulkan
         VulkanMemoryAllocator
         glfw
         vk-bootstrap
         hlslpp
+)
+
+add_library(Renderer)
+
+target_link_libraries(Renderer
+        PUBLIC
+        RenderHelpers
+        RenderInterface
+        WindowingInterface
 )
 
 target_sources(Renderer
@@ -36,11 +53,6 @@ target_sources(Renderer
         RenderPackage.cppm
 
         Vulkan/VulkanImpl.cppm
-        Vulkan/vkInit.cppm
-        Vulkan/vkTypes.cppm
-        Vulkan/vkImage.cppm
-        Vulkan/vkDescriptors.cppm
-        Vulkan/vkPipeline.cppm
 
         DirectX/DirectXImpl.cppm
 )

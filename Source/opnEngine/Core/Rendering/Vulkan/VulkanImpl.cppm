@@ -15,11 +15,7 @@ export module opn.Renderer.Vulkan;
 
 import opn.Renderer.Backend;
 import opn.System.WindowSurfaceProvider;
-import opn.Rendering.Util.vk.vkInit;
-import opn.Rendering.Util.vk.vkTypes;
-import opn.Rendering.Util.vk.vkImage;
-import opn.Rendering.Util.vk.vkDescriptors;
-import opn.Rendering.Util.vk.vkPipeline;
+import opn.Rendering.Util.vk.vkUtil;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
@@ -174,10 +170,6 @@ export namespace opn {
         }
 
         void createDevices() {
-            if( !m_surface ) {
-                logCritical( "VulkanBackend", "No surface provided to VulkanBackend!" );
-                throw std::runtime_error( "No surface provided to VulkanBackend!" );
-            }
 
             VkPhysicalDeviceVulkan13Features features13 = {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES
@@ -592,6 +584,36 @@ export namespace opn {
         }
 
     public:
+        struct ImGuiVulkanInitData {
+            VkInstance       instance = VK_NULL_HANDLE;
+            VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+            VkDevice         device = VK_NULL_HANDLE;
+            uint32_t         queueFamily = 0;
+            VkQueue          queue = VK_NULL_HANDLE;
+            VkFormat         colorFormat = VK_FORMAT_UNDEFINED;
+            uint32_t         minImageCount = 2;
+            uint32_t         imageCount = 2;
+        };
+
+        [[nodiscard]] ImGuiVulkanInitData getImGuiInitData(uint32_t minImageCount = 2) const {
+            ImGuiVulkanInitData data{};
+            data.instance = m_instance;
+            data.physicalDevice = m_chosenDevice;
+            data.device = m_device;
+            data.queueFamily = m_graphicsQueueFamily;
+            data.queue = m_graphicsQueue;
+            data.colorFormat = m_swapchainImageFormat;
+            data.minImageCount = minImageCount;
+
+            const uint32_t swapchainCount = static_cast<uint32_t>(m_swapchainImages.size());
+            data.imageCount = swapchainCount > 0 ? swapchainCount : data.minImageCount;
+            if (data.imageCount < data.minImageCount) {
+                data.imageCount = data.minImageCount;
+            }
+
+            return data;
+        }
+
         void init() override {
             if (m_isInitialized.exchange(true))
                 throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");
@@ -749,7 +771,8 @@ export namespace opn {
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_GENERAL
                                     , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-             );
+            );
+
             vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
