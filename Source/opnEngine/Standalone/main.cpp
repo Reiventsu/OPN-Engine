@@ -3,7 +3,7 @@
 #include <iostream>
 #include <thread>
 
-// all my homies hate the windows terminal
+// all my homies hate the Windows terminal
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
