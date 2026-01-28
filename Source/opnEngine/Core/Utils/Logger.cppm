@@ -104,7 +104,7 @@ export namespace opn {
                     filename = filename.substr(pos + 1);
                 }
 
-                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[ {} ]:{} {} {}( {}:{} ){}"
+                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[{}]:{} {} {}( {}:{} ){}"
                             , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
                             , colour, paddedLevel, OPN_COL_RESET
                             , OPN_COL_CTX, paddedCtx, OPN_COL_RESET
@@ -112,7 +112,7 @@ export namespace opn {
                             , OPN_COL_RESET , filename, _loc.line(), OPN_COL_RESET
                 );
             } else {
-                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[ {} ]:{} {}"
+                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[{}]:{} {}"
                             , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
                             , colour, paddedLevel, OPN_COL_RESET
                             , OPN_COL_CTX, paddedCtx, OPN_COL_RESET
@@ -120,7 +120,7 @@ export namespace opn {
                 );
             }
 #else
-            std::println( std::cout, "{}[{:%H:%M:%S}.{:03d}]{} {}[ {} ]{} {}[ {} ]{}: {}"
+            std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[{}]{}: {}"
                         , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
                         , lvlCol, paddedLvl, OPN_COL_RESET
                         , OPN_COL_CTX, paddedCat, OPN_COL_RESET
