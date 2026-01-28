@@ -37,11 +37,11 @@ using AppServices = opn::SystemTypeList<
 using ServiceManager = opn::ServiceManager_Impl< AppServices >;
 
 int main() {
+    opn::logInfo("OPN Engine", "Starting engine...");
 #ifdef _WIN32
     initTerminal();
 #endif
     try {
-        opn::logInfo( "Main", "Starting application..." );
 
         opn::JobDispatcher::init();
         ServiceManager::init();
@@ -59,16 +59,12 @@ int main() {
             ServiceManager::updateAll(dt);
         }
 
-        opn::logError("test","error");
-        opn::logDebug("test", "debug");
-        opn::logWarning("test", "warning");
-        opn::logCritical("test", "critical");
+        opn::logInfo("OPN Engine", "Shutting down...");
 
-        opn::logInfo("Main", "Engine Shutting down.");
         ServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
 
-        opn::logInfo("Main", "Engine shutdown successfully.");
+        opn::logInfo("OPN Engine", "Shutdown successful.");
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;

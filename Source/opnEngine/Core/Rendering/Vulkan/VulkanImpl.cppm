@@ -24,8 +24,10 @@ import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
 export namespace opn {
-    class VulkanImpl : public RenderBackend {
-        // Member variables
+    class VulkanImpl final : public RenderBackend {
+
+        // -- Data --
+
         std::atomic_bool             m_isInitialized{ };
         uint32_t                     m_frameNumber{ };
         const WindowSurfaceProvider *m_windowHandle = nullptr;
@@ -103,6 +105,17 @@ export namespace opn {
         VkPipeline m_gradientPipeline{ };
         VkPipelineLayout m_gradientPipelineLayout{ };
 
+        struct sImmediate {
+            VkFence fence{ };
+            VkCommandBuffer commandBuffer{ };
+            VkCommandPool commandPool{ };
+
+            void submit(std::function<void(VkCommandBuffer _command)>&& function) {}
+        } m_immediate;
+
+
+        // -- Implementation --
+
         void createInstance() {
             if (volkInitialize() != VK_SUCCESS) {
                 throw std::runtime_error("Failed to initialize Volk!");
@@ -132,7 +145,7 @@ export namespace opn {
         void createAllocator() {
             opn::logInfo( "VulkanBackend", "Creating VMA Allocator..." );
 
-            if (!m_instance || !m_chosenDevice || !m_device) {
+            if( !m_instance || !m_chosenDevice || !m_device ) {
                 opn::logCritical( "VulkanBackend", "VMA prerequisites not met!" );
                 throw std::runtime_error( "Cannot create VMA Allocator!" );
             }
@@ -520,7 +533,7 @@ export namespace opn {
 
             vkDestroyShaderModule( m_device, computeDrawShader, nullptr);
 
-            m_mainDeletionQueue.pushFunction( [ & ] {
+            m_mainDeletionQueue.pushFunction( [ this ] {
                 vkDestroyPipelineLayout( m_device, m_gradientPipelineLayout, nullptr );
                 vkDestroyPipeline( m_device, m_gradientPipeline, nullptr );
             });
@@ -555,7 +568,7 @@ export namespace opn {
         }
 
     public:
-        void init() final {
+        void init() override {
             if (m_isInitialized.exchange(true))
                 throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");
             opn::logInfo("VulkanBackend", "Initializing...");
@@ -582,7 +595,7 @@ export namespace opn {
             opn::logInfo("VulkanBackend", "Initialization complete.");
         }
 
-        void shutdown() final {
+        void shutdown() override {
             logInfo("VulkanBackend", "Shutting down...");
             if (m_isInitialized.exchange(false)) {
                 vkDeviceWaitIdle(m_device);
@@ -631,9 +644,10 @@ export namespace opn {
             } else {
                 logWarning("VulkanBackend", "Shutdown called, but backend was not initialized. Ignoring.");
             }
+            opn::logInfo("VulkanBackend", "Shutdown complete.");
         }
 
-        void update( float _deltaTime ) final {
+        void update( float _deltaTime ) override {
             if (m_isInitialized == false) return;
 
             auto [width, height ] = m_windowHandle->dimension;
@@ -650,7 +664,7 @@ export namespace opn {
             draw();
         }
 
-        void draw() final {
+        void draw() override {
 
             if( m_swapchain == VK_NULL_HANDLE ||
                 m_windowHandle->dimension.width == 0 ||
@@ -691,49 +705,49 @@ export namespace opn {
 
             getCurrentFrame().m_deletionQueue.flushDeletionQueue();
 
-            VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
-            vkUtil::vkCheck(vkResetCommandBuffer( cmd, 0 ), "vkResetCommandBuffer");
+            VkCommandBuffer command = getCurrentFrame().commandBuffer;
+            vkUtil::vkCheck(vkResetCommandBuffer( command, 0 ), "vkResetCommandBuffer");
 
             VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-            vkUtil::vkCheck(vkBeginCommandBuffer( cmd, &cmdBeginInfo ), "vkBeginCommandBuffer");
+            vkUtil::vkCheck(vkBeginCommandBuffer( command, &cmdBeginInfo ), "vkBeginCommandBuffer");
 
-            vkUtil::transition_image( cmd
+            vkUtil::transition_image( command
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_GENERAL
             );
 
-            drawBackground( cmd );
+            drawBackground( command );
 
-            vkUtil::transition_image( cmd
+            vkUtil::transition_image( command
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_GENERAL
                                     , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
              );
-            vkUtil::transition_image( cmd
+            vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             );
 
-            vkUtil::copy_image_to_image( cmd
+            vkUtil::copy_image_to_image( command
                                        , m_drawImage.image
                                        , m_swapchainImages[imageIndex]
                                        , {m_drawImage.imageExtent.width, m_drawImage.imageExtent.height}
                                        , m_swapchainExtent
             );
 
-            vkUtil::transition_image( cmd
+            vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
                                     , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
              );
 
-            vkUtil::vkCheck(vkEndCommandBuffer( cmd ), "vkEndCommandBuffer");
+            vkUtil::vkCheck(vkEndCommandBuffer( command ), "vkEndCommandBuffer");
 
-            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info( cmd );
+            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info( command );
 
             VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(
                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
@@ -778,7 +792,7 @@ export namespace opn {
             m_frameNumber++;
         }
 
-        bool shouldRender() const {
+        [[nodiscard]] bool shouldRender() const {
             return m_swapchain != VK_NULL_HANDLE &&
                    m_windowHandle != nullptr &&
                    m_windowHandle->dimension.width > 0 &&
@@ -809,7 +823,7 @@ export namespace opn {
             );
         }
 
-        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) final {
+        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) {
             logInfo("VulkanBackend", "Binding to window...");
 
             m_windowHandle = &_windowProvider;
