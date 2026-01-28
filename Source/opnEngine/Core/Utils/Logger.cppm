@@ -12,23 +12,26 @@ export module opn.Utils.Logging;
 
 // TODO Add colours to logger for different levels
 
-#define OPN_COL_RESET   "\x1b[0m"
-#define OPN_COL_GRAY    "\x1b[90m"
-#define OPN_COL_CYAN    "\x1b[36m"
-#define OPN_COL_GREEN   "\x1b[32m"
-#define OPN_COL_YELLOW  "\x1b[33m"
-#define OPN_COL_RED     "\x1b[31m"
-#define OPN_COL_BOLD_RED "\x1b[1;31m"
-#define OPN_COL_LIGHT_GRAY  "\x1b[37m"
+#define OPN_COL_RESET       "\x1b[0m"
+#define OPN_COL_TIME        "\x1b[38;5;250m"
+#define OPN_COL_CTX         "\x1b[34m"
+#define OPN_COL_BRACKET     "\x1b[37m"
+
+#define OPN_COL_PINK        "\x1b[95m"
+#define OPN_COL_CYAN        "\x1b[36m"
+#define OPN_COL_WHITE       "\x1b[37m"
+#define OPN_COL_YELLOW      "\x1b[33m"
+#define OPN_COL_ORANGE      "\x1b[38;5;208m"
+#define OPN_COL_BOLD_RED    "\x1b[1;31m"
 
 // Defines all forms of logging code will automatically
 // generate new levels if added to this X macro list.
-#define LOG_LEVELS                                     \
-    X(Trace,    "TRACE", 0, false, OPN_COL_GRAY)       \
-    X(Debug,    "DEBUG", 1, false, OPN_COL_CYAN)       \
-    X(Info,     "INFO",  2, false, OPN_COL_LIGHT_GRAY) \
-    X(Warning,  "WARN",  3, true,  OPN_COL_YELLOW)     \
-    X(Error,    "ERROR", 4, true,  OPN_COL_RED)        \
+#define LOG_LEVELS                                   \
+    X(Trace,    "TRACE", 0, false, OPN_COL_PINK)     \
+    X(Debug,    "DEBUG", 1, false, OPN_COL_CYAN)     \
+    X(Info,     "INFO",  2, false, OPN_COL_WHITE)    \
+    X(Warning,  "WARN",  3, true,  OPN_COL_YELLOW)   \
+    X(Error,    "ERROR", 4, true,  OPN_COL_ORANGE)   \
     X(Critical, "CRIT",  5, true,  OPN_COL_BOLD_RED)
 
 export namespace opn {
@@ -84,11 +87,10 @@ export namespace opn {
 
             std::lock_guard lock(log_mutex);
             std::string_view colour = levelToColour(_level);
-#ifdef NDEBUG
-            std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {}{}",
-                         colour, now_seconds, ms, levelToString(_level), _category, message, OPN_COL_RESET
-            );
-#else
+            std::string_view level = levelToString(_level);
+            std::string paddedLevel = std::format("{:^5}", level);
+            std::string paddedCtx = std::format("{:<1}", _category);
+#ifndef NDEBUG
             bool shouldShowLoc = false;
             switch (_level) {
 #define X(name, str, val, showLoc, col) case eLogLevel::name: shouldShowLoc = showLoc; break;
@@ -102,14 +104,28 @@ export namespace opn {
                     filename = filename.substr(pos + 1);
                 }
 
-                std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {} ({}:{}){}",
-                             colour, now_seconds, ms, levelToString(_level), _category, message, filename, _loc.line(), OPN_COL_RESET
+                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[ {} ]:{} {} {}( {}:{} ){}"
+                            , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
+                            , colour, paddedLevel, OPN_COL_RESET
+                            , OPN_COL_CTX, paddedCtx, OPN_COL_RESET
+                            , message
+                            , OPN_COL_RESET , filename, _loc.line(), OPN_COL_RESET
                 );
             } else {
-                std::println(std::cerr, "{}[{:%H:%M:%S}.{:03d}] [{}] [{}] {}{}",
-                             colour, now_seconds, ms, levelToString(_level), _category, message, OPN_COL_RESET
+                std::println( std::cout, "{}[ {:%H:%M:%S}.{:03d} ]{} {}[ {} ]{} {}[ {} ]:{} {}"
+                            , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
+                            , colour, paddedLevel, OPN_COL_RESET
+                            , OPN_COL_CTX, paddedCtx, OPN_COL_RESET
+                            , message
                 );
             }
+#else
+            std::println( std::cout, "{}[{:%H:%M:%S}.{:03d}]{} {}[ {} ]{} {}[ {} ]{}: {}"
+                        , OPN_COL_TIME, now_seconds, ms, OPN_COL_RESET
+                        , lvlCol, paddedLvl, OPN_COL_RESET
+                        , OPN_COL_CTX, paddedCat, OPN_COL_RESET
+                        , message
+            );
 #endif
         }
 
