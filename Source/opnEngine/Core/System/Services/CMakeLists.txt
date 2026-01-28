@@ -21,6 +21,7 @@ target_sources(Services
         AssetSystem.cppm
         WindowSystem.cppm
         Rendering.cppm
+        ImGuiService.cppm
 )
 
 target_link_libraries(Services
