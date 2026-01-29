@@ -57,7 +57,7 @@ namespace opn {
             return surface;
         }
 
-        [[nodiscard]] GLFWwindow *getGLFWWindow() const {
+        [[nodiscard]] GLFWwindow *getGLFWWindow() const override {
             return m_window;
         }
 
