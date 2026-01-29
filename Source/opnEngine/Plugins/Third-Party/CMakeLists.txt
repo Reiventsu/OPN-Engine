@@ -16,6 +16,7 @@ target_sources(imgui INTERFACE
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
         ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
 )
 
 add_library(Third-Party INTERFACE)

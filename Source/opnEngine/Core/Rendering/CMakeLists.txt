@@ -35,9 +35,11 @@ add_library(Renderer)
 
 target_link_libraries(Renderer
         PUBLIC
+        EngineServices
         RenderHelpers
         RenderInterface
         WindowingInterface
+        imgui
 )
 
 target_sources(Renderer

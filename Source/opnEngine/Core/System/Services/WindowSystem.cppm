@@ -57,6 +57,10 @@ namespace opn {
             return surface;
         }
 
+        [[nodiscard]] GLFWwindow *getGLFWWindow() const {
+            return m_window;
+        }
+
     protected:
         void onInit() override {
             logInfo("WindowSystem", "Initializing window system...");

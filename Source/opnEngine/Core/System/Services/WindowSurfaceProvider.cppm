@@ -1,4 +1,6 @@
 module;
+
+#include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
 export module opn.System.WindowSurfaceProvider;
 
@@ -19,6 +21,10 @@ export namespace opn {
             dimension.width = _width;
             dimension.height = _height;
         };
+
+        virtual GLFWwindow* getGLFWWindow() const {
+            return nullptr;
+        }
 
         virtual VkSurfaceKHR createSurface(VkInstance _instance) const = 0;
     };

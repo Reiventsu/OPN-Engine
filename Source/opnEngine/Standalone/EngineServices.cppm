@@ -1,0 +1,27 @@
+export module opn.System.EngineServices;
+
+import opn.System.ServiceManager;
+import opn.System.SystemTypeList;
+import opn.System.Services;
+import opn.Renderer.RenderPackage;
+
+export namespace opn {
+    using EngineServices = SystemTypeList<
+        Time,                             // Mandatory service
+        WindowSystem,                     // Mandatory service
+        Rendering< VulkanImpl >,
+        AssetSystem
+    >;
+
+    using EngineServiceManager = ServiceManager_Impl< EngineServices >;
+
+    template<typename T>
+    inline const T& getService() {
+        return EngineServiceManager::getService<T>();
+    }
+
+    template<typename T>
+    inline bool isServiceRegistered() {
+        return EngineServiceManager::template isRegistered<T>();
+    }
+}

@@ -1,7 +1,4 @@
 module;
-#include <volk.h>
-#include <VkBootstrap.h>
-
 #include <atomic>
 #include <complex>
 #include <deque>
@@ -9,6 +6,17 @@ module;
 #include <functional>
 #include <thread>
 
+#include "hlsl++.h"
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
+
+#ifdef IMGUI_IMPL_VULKAN_USE_VOLK
+#include "volk.h"
+#endif
+
+#include "VkBootstrap.h"
 #include "vk_mem_alloc.h"
 
 export module opn.Renderer.Vulkan;
@@ -24,9 +32,9 @@ export namespace opn {
 
         // -- Data --
 
-        std::atomic_bool             m_isInitialized{ };
-        uint32_t                     m_frameNumber{ };
-        const WindowSurfaceProvider *m_windowHandle = nullptr;
+        std::atomic_bool       m_isInitialized{ };
+        uint32_t               m_frameNumber{ };
+        WindowSurfaceProvider *m_windowHandle = nullptr;
 
         VkInstance               m_instance             = nullptr;
         VkDebugUtilsMessengerEXT m_debugMessenger       = nullptr;
@@ -75,6 +83,13 @@ export namespace opn {
             VmaAllocation allocation{ };
             VkExtent3D    imageExtent{ };
             VkFormat      format{ };
+        };
+
+        struct sComputePushConstants {
+            hlslpp::float4 data1;
+            hlslpp::float4 data2;
+            hlslpp::float4 data3;
+            hlslpp::float4 data4;
         };
 
         constexpr static uint8_t FRAME_OVERLAP = 2;
@@ -216,7 +231,6 @@ export namespace opn {
         }
 
         void createSwapchain() {
-            if( m_windowHandle == nullptr ) return;
 
             auto [ width, height ] = m_windowHandle->dimension;
             if( width == 0 || height == 0 ) {
@@ -555,6 +569,74 @@ export namespace opn {
             });
         }
 
+        void createImGui() {
+            opn::logInfo("VulkanBackend", "Creating ImGui objects...");
+            VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
+                                                  { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 }
+            };
+
+            VkDescriptorPoolCreateInfo descriptorPoolInfo = {};
+
+            descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+            descriptorPoolInfo.maxSets = 1000;
+            descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(std::size(poolSizes));
+            descriptorPoolInfo.pPoolSizes = poolSizes;
+
+            VkDescriptorPool imguiPool;
+            vkUtil::vkCheck(
+                vkCreateDescriptorPool( m_device
+                                      , &descriptorPoolInfo
+                                      , nullptr
+                                      , &imguiPool )
+                                      , "vkCreateDescriptorPool"
+            );
+
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+
+            auto* glfwWindow = m_windowHandle->getGLFWWindow();
+            if ( !glfwWindow ) {
+                opn::logCritical("VulkanBackend", "Failed to get native window handle. ImGui will not work.");
+                return;
+            }
+            ImGui_ImplGlfw_InitForVulkan( glfwWindow, true);
+
+            ImGui_ImplVulkan_InitInfo initInfo{};
+            initInfo.ApiVersion = VK_API_VERSION_1_3;
+            initInfo.Instance = m_instance;
+            initInfo.PhysicalDevice = m_chosenDevice;
+            initInfo.Device = m_device;
+            initInfo.Queue = m_graphicsQueue;
+            initInfo.DescriptorPool = imguiPool;
+            initInfo.MinImageCount = 3;
+            initInfo.ImageCount = 3;
+            initInfo.UseDynamicRendering = true;
+
+            initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+            initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+            initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_swapchainImageFormat;
+
+            initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+            ImGui_ImplVulkan_Init( &initInfo );
+
+            m_mainDeletionQueue.pushFunction( [ this, imguiPool ] {
+                ImGui_ImplVulkan_Shutdown();
+                vkDestroyDescriptorPool( m_device, imguiPool, nullptr );
+            });
+            opn::logInfo("VulkanBackend", "ImGui objects created.");
+        }
+
         void destroySwapchain() {
             if( m_device != VK_NULL_HANDLE ) {
                 vkDeviceWaitIdle( m_device );
@@ -584,36 +666,6 @@ export namespace opn {
         }
 
     public:
-        struct ImGuiVulkanInitData {
-            VkInstance       instance = VK_NULL_HANDLE;
-            VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-            VkDevice         device = VK_NULL_HANDLE;
-            uint32_t         queueFamily = 0;
-            VkQueue          queue = VK_NULL_HANDLE;
-            VkFormat         colorFormat = VK_FORMAT_UNDEFINED;
-            uint32_t         minImageCount = 2;
-            uint32_t         imageCount = 2;
-        };
-
-        [[nodiscard]] ImGuiVulkanInitData getImGuiInitData(uint32_t minImageCount = 2) const {
-            ImGuiVulkanInitData data{};
-            data.instance = m_instance;
-            data.physicalDevice = m_chosenDevice;
-            data.device = m_device;
-            data.queueFamily = m_graphicsQueueFamily;
-            data.queue = m_graphicsQueue;
-            data.colorFormat = m_swapchainImageFormat;
-            data.minImageCount = minImageCount;
-
-            const uint32_t swapchainCount = static_cast<uint32_t>(m_swapchainImages.size());
-            data.imageCount = swapchainCount > 0 ? swapchainCount : data.minImageCount;
-            if (data.imageCount < data.minImageCount) {
-                data.imageCount = data.minImageCount;
-            }
-
-            return data;
-        }
-
         void init() override {
             if (m_isInitialized.exchange(true))
                 throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");
@@ -637,6 +689,7 @@ export namespace opn {
             createSyncObjects();
 
             createPipelines();
+            createImGui();
 
             opn::logInfo("VulkanBackend", "Initialization complete.");
         }
@@ -707,6 +760,14 @@ export namespace opn {
                 return;
             }
 
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            ImGui::ShowDemoWindow();
+
+            ImGui::Render();
+
             draw();
         }
 
@@ -758,7 +819,9 @@ export namespace opn {
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
             vkUtil::vkCheck(vkBeginCommandBuffer( command, &cmdBeginInfo ), "vkBeginCommandBuffer");
+            // some comments below to help me think better because im still not very good at this
 
+            // Prepare draw image for shader
             vkUtil::transition_image( command
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_UNDEFINED
@@ -767,18 +830,21 @@ export namespace opn {
 
             drawBackground( command );
 
+            // prepare image for copying FROM it
             vkUtil::transition_image( command
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_GENERAL
                                     , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             );
 
+            // prepare swapchain image for copying TO it
             vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             );
 
+            // copy the draw image to swapchain image
             vkUtil::copy_image_to_image( command
                                        , m_drawImage.image
                                        , m_swapchainImages[imageIndex]
@@ -786,11 +852,21 @@ export namespace opn {
                                        , m_swapchainExtent
             );
 
+            // prepare the swapchain for ImGui rendering
             vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                                    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+
+            drawImGui( command, m_swapchainImageViews[ imageIndex ] );
+
+            // prepare swapchain presentation
+            vkUtil::transition_image( command
+                                    , m_swapchainImages[imageIndex]
+                                    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                                     , VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-             );
+            );
 
             vkUtil::vkCheck(vkEndCommandBuffer( command ), "vkEndCommandBuffer");
 
@@ -837,6 +913,24 @@ export namespace opn {
             }
 
             m_frameNumber++;
+        }
+
+        void drawImGui( VkCommandBuffer _command, VkImageView _targetImageView ) {
+            VkRenderingAttachmentInfoKHR colorAttachment = vkInit::attachment_info( _targetImageView
+                                                                                  , nullptr
+                                                                                  , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+
+            VkRenderingInfo renderInfo = vkInit::rendering_info( m_swapchainExtent
+                                                               , &colorAttachment
+                                                               , nullptr
+            );
+
+            vkCmdBeginRendering( _command, &renderInfo );
+
+            ImGui_ImplVulkan_RenderDrawData( ImGui::GetDrawData(), _command );
+
+            vkCmdEndRendering( _command );
         }
 
         void submitImmediate( std::function< void( VkCommandBuffer _command ) >&& _function ) {
@@ -920,7 +1014,7 @@ export namespace opn {
             );
         }
 
-        void bindToWindow( const WindowSurfaceProvider &_windowProvider ) override {
+        void bindToWindow( WindowSurfaceProvider &_windowProvider ) override {
             opn::logInfo( "VulkanBackend", "Binding to window..." );
 
             m_windowHandle = &_windowProvider;

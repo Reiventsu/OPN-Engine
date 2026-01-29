@@ -26,21 +26,11 @@ void initTerminal() {
 #endif
 
 import opn.System.JobDispatcher;
-import opn.System.ServiceManager;
-import opn.System.SystemTypeList;
 import opn.System.Services;
+import opn.System.EngineServices;
 import opn.Utils.Logging;
 import opn.Renderer.RenderPackage;
 
-using AppServices = opn::SystemTypeList<
-    opn::Time,                           // Mandatory service
-    opn::WindowSystem,                   // Mandatory service
-    opn::Rendering< opn::VulkanImpl >,
-    opn::ImGuiService,
-    opn::AssetSystem
->;
-
-using ServiceManager = opn::ServiceManager_Impl< AppServices >;
 
 int main() {
     opn::logInfo("OPN Engine", "Starting engine...");
@@ -50,13 +40,13 @@ int main() {
     try {
 
         opn::JobDispatcher::init();
-        ServiceManager::init();
+        opn::EngineServiceManager::init();
 
-        ServiceManager::registerServices();
-        ServiceManager::postInitAll();
+        opn::EngineServiceManager::registerServices();
+        opn::EngineServiceManager::postInitAll();
 
-        auto &time = ServiceManager::getService<opn::Time>();
-        auto &window = ServiceManager::getService<opn::WindowSystem>();
+        auto &time = opn::EngineServiceManager::getService<opn::Time>();
+        auto &window = opn::EngineServiceManager::getService<opn::WindowSystem>();
 
         opn::logCritical("test","test");
         opn::logDebug("test", "test");
@@ -68,12 +58,12 @@ int main() {
             window.pollEvents();
 
             const auto dt = static_cast<float>(time.getDeltaTime());
-            ServiceManager::updateAll(dt);
+            opn::EngineServiceManager::updateAll(dt);
         }
 
         opn::logInfo("OPN Engine", "Shutting down...");
 
-        ServiceManager::shutdown();
+        opn::EngineServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
 
         opn::logInfo("OPN Engine", "Shutdown successful.");

@@ -34,7 +34,7 @@ export namespace opn {
             // TODO
         }
 
-        void bindToWindow(const WindowSurfaceProvider & /*_window*/) override {
+        void bindToWindow(WindowSurfaceProvider & /*_window*/) override {
             // TODO
         }
     };
