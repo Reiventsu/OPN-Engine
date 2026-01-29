@@ -5,11 +5,17 @@ add_subdirectory(VulkanMemoryAllocator)
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ImGui)
 
 add_library(imgui INTERFACE)
+
+target_compile_definitions(imgui INTERFACE
+        IMGUI_USER_CONFIG="${CMAKE_SOURCE_DIR}/Source/opnEngine/Plugins/Third-Party/OPN_imconfig.h"
+)
+
 target_include_directories(imgui INTERFACE
         ${IMGUI_DIR}
         ${IMGUI_DIR}/backends
 )
 target_sources(imgui INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/OPN_imconfig.h
         ${IMGUI_DIR}/imgui.cpp
         ${IMGUI_DIR}/imgui_draw.cpp
         ${IMGUI_DIR}/imgui_tables.cpp
