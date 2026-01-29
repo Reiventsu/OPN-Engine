@@ -506,7 +506,7 @@ export namespace opn {
         }
 
         void createPipelines() {
-            createBackgroundPipelines( "testshader" );
+            createBackgroundPipelines( "gradientColour_COMP" );
         }
 
         void createBackgroundPipelines(const std::string_view _shaderFileName) {
@@ -522,6 +522,14 @@ export namespace opn {
             computeLayout.pNext          = nullptr;
             computeLayout.pSetLayouts    = &m_drawImageDescriptorLayout;
             computeLayout.setLayoutCount = 1;
+
+            VkPushConstantRange pushConstantRange{};
+            pushConstantRange.offset = 0;
+            pushConstantRange.size = sizeof( sComputePushConstants );
+            pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+            computeLayout.pPushConstantRanges = &pushConstantRange;
+            computeLayout.pushConstantRangeCount = 1;
 
             vkUtil::vkCheck( vkCreatePipelineLayout( m_device
                                                    , &computeLayout
@@ -1000,16 +1008,26 @@ export namespace opn {
             vkCmdBindDescriptorSets( _command
                                    , VK_PIPELINE_BIND_POINT_COMPUTE
                                    , m_gradientPipelineLayout
-                                   , 0
-                                   , 1
+                                   , 0, 1
                                    , &m_drawImageDescriptors
-                                   , 0
-                                   , nullptr
+                                   , 0, nullptr
+            );
+
+            sComputePushConstants pc;
+            pc.data1 = hlslpp::float4( 1, 0, 0, 1 );
+            pc.data2 = hlslpp::float4( 0, 0, 1, 1 );
+
+            vkCmdPushConstants( _command
+                              , m_gradientPipelineLayout
+                              , VK_SHADER_STAGE_COMPUTE_BIT
+                              , 0
+                              , sizeof( sComputePushConstants )
+                              , &pc
             );
 
             vkCmdDispatch( _command
-                         , std::ceil( m_drawImage.imageExtent.width / 16.0)
-                         , std::ceil( m_drawImage.imageExtent.height / 16.0 )
+                         , static_cast< uint32_t >( std::ceil( m_drawImage.imageExtent.width / 16.0f ) )
+                         , static_cast< uint32_t >( std::ceil( m_drawImage.imageExtent.height / 16.0f ) )
                          , 1
             );
         }
