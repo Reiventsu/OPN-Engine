@@ -9,16 +9,19 @@ file(MAKE_DIRECTORY ${OUTPUT_DIR})
 
 foreach (SHADER_FILE ${SHADER_SOURCES})
     get_filename_component(SHADER_NAME ${SHADER_FILE} NAME_WLE)
-
     set(OUTPUT_FILE "${OUTPUT_DIR}/${SHADER_NAME}.spv")
+    set(DEP_FILE "${OUTPUT_DIR}/${SHADER_NAME}.d")
 
     add_custom_command(
             OUTPUT ${OUTPUT_FILE}
-            COMMAND ${SLANG_COMPILER} ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FILE}
-                    -target spirv
-                    -o ${OUTPUT_FILE}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FILE}
-            COMMENT "Compiling ${SHADER_FILE} to SPIR-V"
+            DEPFILE ${DEP_FILE}
+            COMMAND ${SLANG_COMPILER} "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FILE}"
+            -target spirv
+            -entry main
+            -o "${OUTPUT_FILE}"
+            -depfile "${DEP_FILE}"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER_FILE}"
+            COMMENT "Compiling Slang shader: ${SHADER_FILE}"
             VERBATIM
     )
 
