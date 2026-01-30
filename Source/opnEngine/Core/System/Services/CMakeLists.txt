@@ -21,6 +21,7 @@ target_sources(Services
         AssetSystem.cppm
         WindowSystem.cppm
         Rendering.cppm
+        EntityComponentSystem/ECS.cppm
 )
 
 target_link_libraries(Services
