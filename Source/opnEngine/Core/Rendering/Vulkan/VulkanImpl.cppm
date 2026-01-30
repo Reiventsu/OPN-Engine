@@ -119,6 +119,10 @@ export namespace opn {
         VkPipeline m_trianglePipeline{ };
         VkPipelineLayout m_trianglePipelineLayout{ };
 
+        VkPipeline m_meshPipeline{ };
+        VkPipelineLayout m_meshPipelineLayout{ };
+        vkUtil::sGPUMeshBuffers m_rectangle{ };
+
         struct sImmediate {
             VkFence fence{ };
             VkCommandBuffer commandBuffer{ };
@@ -189,11 +193,6 @@ export namespace opn {
                 "vmaCreateAllocator"
             );
 
-            m_mainDeletionQueue.pushFunction( [ this ]( ) {
-                if( m_vmaAllocator )
-                    vmaDestroyAllocator( m_vmaAllocator );
-            });
-
             opn::logInfo( "VulkanBackend", "VMA Allocator created successfully!" );
         }
 
@@ -214,13 +213,16 @@ export namespace opn {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES
             };
             features11.shaderDrawParameters = VK_TRUE;
+            VkPhysicalDeviceFeatures features1 = { };
+            features1.shaderInt64 = VK_TRUE;
 
             vkb::PhysicalDeviceSelector selector{m_vkbInstance};
             auto physicalDeviceRet = selector
                     .set_minimum_version(1, 3)
-                    .set_required_features_13(features13)
-                    .set_required_features_12(features12)
+                    .set_required_features(features1)
                     .set_required_features_11(features11)
+                    .set_required_features_12(features12)
+                    .set_required_features_13(features13)
                     .set_surface(m_surface)
                     .select();
 
@@ -524,9 +526,67 @@ export namespace opn {
             });
         }
 
+        vkUtil::sAllocatedBuffer createBuffer(size_t _allocSize, VkBufferUsageFlags _usage, VmaMemoryUsage _memUsage) {
+            VkBufferCreateInfo bufferInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+            bufferInfo.pNext = nullptr;
+            bufferInfo.size = _allocSize;
+
+            bufferInfo.usage = _usage;
+
+            VmaAllocationCreateInfo vmaAllocInfo = { };
+            vmaAllocInfo.usage = _memUsage;
+            vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            vkUtil::sAllocatedBuffer newBuffer;
+
+            vkUtil::vkCheck(
+                vmaCreateBuffer( m_vmaAllocator
+                               , &bufferInfo
+                               , &vmaAllocInfo
+                               , &newBuffer.buffer
+                               , &newBuffer.allocation
+                               , nullptr)
+                               , "vmaCreateBuffer"
+            );
+
+            return newBuffer;
+        }
+
         void createPipelines() {
+            // compute pipelines
             createBackgroundPipelines();
+
+            // graphics pipelines
             createTrianglePipeleine();
+            createMeshPipeline();
+        }
+
+        void createDefaultData() {
+            std::array<vkUtil::sVertex, 4> rectVertices;
+            rectVertices[0].position = {0.5,-0.5, 0};
+            rectVertices[1].position = {0.5,0.5, 0};
+            rectVertices[2].position = {-0.5,-0.5, 0};
+            rectVertices[3].position = {-0.5,0.5, 0};
+
+            rectVertices[0].color = {0,0, 0,1};
+            rectVertices[1].color = { 0.5,0.5,0.5 ,1};
+            rectVertices[2].color = { 1,0, 0,1 };
+            rectVertices[3].color = { 0,1, 0,1 };
+
+            std::array<uint32_t,6> rectIndices;
+            rectIndices[0] = 0;
+            rectIndices[1] = 1;
+            rectIndices[2] = 2;
+            rectIndices[3] = 2;
+            rectIndices[4] = 1;
+            rectIndices[5] = 3;
+
+            m_rectangle = uploadMesh(rectIndices, rectVertices);
+
+            m_mainDeletionQueue.pushFunction([this] {
+                destroyBuffer(m_rectangle.indexBuffer);
+                destroyBuffer(m_rectangle.vertexBuffer);
+            });
+
         }
 
         void createBackgroundPipelines() {
@@ -707,6 +767,65 @@ export namespace opn {
             });
         }
 
+        void createMeshPipeline() {
+            VkShaderModule meshTriangleFragShader;
+            auto meshTriangleFragShaderResult
+            = vkUtil::PipelineBuilder::loadShaderModule(std::filesystem::current_path() / ".." / "Shaders" / "coloured_triangle.frag.spv", m_device);
+            if (!meshTriangleFragShaderResult) {
+                opn::logError("VulkanBackend", "Failed to load mesh triangle shader: {}", meshTriangleFragShaderResult.error());
+                return;
+            }
+            meshTriangleFragShader = meshTriangleFragShaderResult.value();
+
+            VkShaderModule meshTriangleVertShader;
+            auto meshTriangleVertShaderResult
+            = vkUtil::PipelineBuilder::loadShaderModule(std::filesystem::current_path() / ".." / "Shaders" / "coloured_triangle.vert.spv", m_device);
+            if (!meshTriangleVertShaderResult) {
+                opn::logError("VulkanBackend", "Failed to load mesh triangle shader: {}", meshTriangleVertShaderResult.error());
+            }
+            meshTriangleVertShader = meshTriangleVertShaderResult.value();
+
+            VkPushConstantRange pushConstantRange{};
+            pushConstantRange.offset = 0;
+            pushConstantRange.size = sizeof( vkUtil::sGPUDrawPushConstants );
+            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkInit::pipeline_layout_create_info();
+            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+            pipelineLayoutInfo.pushConstantRangeCount = 1;
+
+            vkUtil::vkCheck(
+                vkCreatePipelineLayout( m_device
+                                      , &pipelineLayoutInfo
+                                      , nullptr
+                                      , &m_meshPipelineLayout )
+                                      , "vkCreatePipelineLayout"
+            );
+
+            vkUtil::PipelineBuilder meshPipelineBuilder;
+            meshPipelineBuilder.m_pipelineLayout = m_meshPipelineLayout;
+            meshPipelineBuilder.setShaders( meshTriangleVertShader, meshTriangleFragShader );
+            meshPipelineBuilder.setInputTopology( VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST );
+            meshPipelineBuilder.setPolygonMode( VK_POLYGON_MODE_FILL );
+            meshPipelineBuilder.setCullMode( VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+            meshPipelineBuilder.setMultisamplingNone();
+            meshPipelineBuilder.disableBlending();
+            meshPipelineBuilder.disableDepthTest();
+
+            meshPipelineBuilder.setColorAttachmentFormat( m_drawImage.format );
+            meshPipelineBuilder.setDepthFormat( VK_FORMAT_UNDEFINED );
+
+            m_meshPipeline = meshPipelineBuilder.buildPipeline( m_device );
+
+            vkDestroyShaderModule( m_device, meshTriangleFragShader, nullptr );
+            vkDestroyShaderModule( m_device, meshTriangleVertShader, nullptr );
+
+            m_mainDeletionQueue.pushFunction( [ this ] {
+                vkDestroyPipelineLayout( m_device, m_meshPipelineLayout, nullptr );
+                vkDestroyPipeline(m_device, m_meshPipeline, nullptr);
+            });
+        }
+
         void createImGui() {
             opn::logInfo("VulkanBackend", "Creating ImGui objects...");
             VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
@@ -803,6 +922,64 @@ export namespace opn {
             m_imageInFlightFences.clear();
         }
 
+        void destroyBuffer(const vkUtil::sAllocatedBuffer& _buffer) const {
+            vmaDestroyBuffer( m_vmaAllocator, _buffer.buffer, _buffer.allocation );
+        }
+
+        vkUtil::sGPUMeshBuffers uploadMesh(std::span<uint32_t> _indices, std::span<vkUtil::sVertex> _vertices) {
+            vkUtil::sGPUMeshBuffers newSurface{};
+
+            size_t vertexBufferSize = _vertices.size() * sizeof(vkUtil::sVertex);
+            size_t indexBufferSize = _indices.size() * sizeof(uint32_t);
+
+            newSurface.vertexBuffer = createBuffer( vertexBufferSize
+                                                  , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+                                                  ,VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            VkBufferDeviceAddressInfo bufferDeviceAddressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+            bufferDeviceAddressInfo.buffer = newSurface.vertexBuffer.buffer;
+            newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(m_device, &bufferDeviceAddressInfo);
+
+            newSurface.indexBuffer = createBuffer( indexBufferSize
+                                                 , VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                                                 , VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            vkUtil::sAllocatedBuffer staging = createBuffer( vertexBufferSize + indexBufferSize
+                                                          , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+                                                          , VMA_MEMORY_USAGE_CPU_ONLY
+            );
+
+            VmaAllocationInfo stagingAllocInfo{};
+            vmaGetAllocationInfo( m_vmaAllocator, staging.allocation, &stagingAllocInfo );
+
+            void* data = stagingAllocInfo.pMappedData;
+            memcpy(data, _vertices.data(), vertexBufferSize);
+            memcpy(static_cast<char *>(data) + vertexBufferSize, _indices.data(), indexBufferSize);
+
+            submitImmediate([ & ] (VkCommandBuffer _command) {
+                VkBufferCopy vertexCopy{ 0 };
+                vertexCopy.srcOffset = 0;
+                vertexCopy.dstOffset = 0;
+                vertexCopy.size = vertexBufferSize;
+
+                vkCmdCopyBuffer( _command, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy );
+
+                VkBufferCopy indexCopy{ 0 };
+                indexCopy.srcOffset = vertexBufferSize;
+                indexCopy.dstOffset = 0;
+                indexCopy.size = indexBufferSize;
+
+                vkCmdCopyBuffer( _command, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy );
+            });
+
+            destroyBuffer( staging );
+            return newSurface;
+        }
+
     public:
         void init() override {
             if (m_isInitialized.exchange(true))
@@ -826,6 +1003,7 @@ export namespace opn {
             createCommands();
             createSyncObjects();
 
+            createDefaultData();
             createPipelines();
             createImGui();
 
@@ -836,6 +1014,11 @@ export namespace opn {
             logInfo("VulkanBackend", "Shutting down...");
             if (m_isInitialized.exchange(false)) {
                 vkDeviceWaitIdle(m_device);
+
+                m_mainDeletionQueue.flushDeletionQueue();
+                for ( auto&i:m_frameData) {
+                    i.m_deletionQueue.flushDeletionQueue();
+                }
 
                 if( m_drawImage.imageView ) {
                     vkDestroyImageView( m_device
@@ -851,6 +1034,11 @@ export namespace opn {
                     );
                     m_drawImage.image = VK_NULL_HANDLE;
                     m_drawImage.allocation = VK_NULL_HANDLE;
+                }
+
+                if (m_vmaAllocator) {
+                    vmaDestroyAllocator(m_vmaAllocator);
+                    m_vmaAllocator = nullptr;
                 }
 
                 destroySwapchain();
@@ -1129,7 +1317,7 @@ export namespace opn {
                 vkInit::submit_info( &cmdSubmitInfo, nullptr, nullptr );
 
             vkUtil::vkCheck(
-                vkQueueSubmit2( m_graphicsQueue, 1, &submitInfo, nullptr )
+                vkQueueSubmit2( m_graphicsQueue, 1, &submitInfo, m_immediate.fence )
                               , "vkQueueSubmit2"
             );
 
@@ -1214,6 +1402,25 @@ export namespace opn {
 
             vkCmdDraw( _command, 3, 1, 0, 0 );
 
+            vkCmdBindPipeline( _command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_meshPipeline);
+
+            vkUtil::sGPUDrawPushConstants pushConstants{};
+            pushConstants.worldMatrix = hlslpp::float4x4::identity();
+            pushConstants.vertexBuffer = m_rectangle.vertexBufferAddress;
+
+            vkCmdPushConstants( _command
+                              , m_meshPipelineLayout
+                              , VK_SHADER_STAGE_VERTEX_BIT
+                              , 0, sizeof(vkUtil::sGPUDrawPushConstants)
+                              , &pushConstants
+            );
+            vkCmdBindIndexBuffer( _command
+                                , m_rectangle.indexBuffer.buffer
+                                , 0, VK_INDEX_TYPE_UINT32
+            );
+
+            vkCmdDrawIndexed( _command, 6, 1, 0, 0, 0 );
+
             vkCmdEndRendering( _command );
         }
 
@@ -1230,6 +1437,5 @@ export namespace opn {
 
             completeInit();
         }
-
     };
 }

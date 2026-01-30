@@ -48,11 +48,13 @@ int main() {
         auto &time = opn::EngineServiceManager::getService<opn::Time>();
         auto &window = opn::EngineServiceManager::getService<opn::WindowSystem>();
 
+        /*
         opn::logCritical("test","test");
         opn::logDebug("test", "test");
         opn::logInfo("test", "test");
         opn::logWarning("test", "test");
         opn::logError("test", "test");
+        */
 
         while (!window.shouldClose()) {
             window.pollEvents();
