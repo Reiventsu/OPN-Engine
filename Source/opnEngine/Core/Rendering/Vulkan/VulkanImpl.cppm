@@ -116,6 +116,9 @@ export namespace opn {
         VkPipeline m_gradientPipeline{ };
         VkPipelineLayout m_gradientPipelineLayout{ };
 
+        VkPipeline m_trianglePipeline{ };
+        VkPipelineLayout m_trianglePipelineLayout{ };
+
         struct sImmediate {
             VkFence fence{ };
             VkCommandBuffer commandBuffer{ };
@@ -129,7 +132,7 @@ export namespace opn {
             sComputePushConstants data;
         };
 
-        std::vector<sComputeEffect> m_backgroundEffects = {};
+        std::vector< sComputeEffect > m_backgroundEffects{};
         int32_t m_currentBackgroundEffect = 0;
 
         // -- Implementation --
@@ -207,12 +210,17 @@ export namespace opn {
             };
             features12.bufferDeviceAddress = VK_TRUE;
             features12.descriptorIndexing = VK_TRUE;
+            VkPhysicalDeviceVulkan11Features features11 = {
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES
+            };
+            features11.shaderDrawParameters = VK_TRUE;
 
             vkb::PhysicalDeviceSelector selector{m_vkbInstance};
             auto physicalDeviceRet = selector
                     .set_minimum_version(1, 3)
                     .set_required_features_13(features13)
                     .set_required_features_12(features12)
+                    .set_required_features_11(features11)
                     .set_surface(m_surface)
                     .select();
 
@@ -351,6 +359,7 @@ export namespace opn {
 
             m_drawImage.format = VK_FORMAT_R16G16B16A16_SFLOAT;
             m_drawImage.imageExtent = drawImageExtent;
+            m_drawImageExtent = {drawImageExtent.width, drawImageExtent.height};
 
             VkImageUsageFlags drawImageUsages {};
             drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -517,6 +526,7 @@ export namespace opn {
 
         void createPipelines() {
             createBackgroundPipelines();
+            createTrianglePipeleine();
         }
 
         void createBackgroundPipelines() {
@@ -544,8 +554,8 @@ export namespace opn {
                                                    , "vkCreatePipelineLayout"
             );
 
-            std::filesystem::path gradientPath = std::filesystem::current_path() / ".." / "Shaders" / "gradientColour_COMP.spv";
-            auto gradientResult = vkUtil::loadShaderModule(gradientPath, m_device);
+            std::filesystem::path gradientPath = std::filesystem::current_path() / ".." / "Shaders" / "gradientColour.comp.spv";
+            auto gradientResult = vkUtil::PipelineBuilder::loadShaderModule(gradientPath, m_device);
 
             if (!gradientResult) {
                 opn::logError("VulkanBackend", "Failed to load gradient shader: {}", gradientResult.error());
@@ -555,7 +565,7 @@ export namespace opn {
             VkShaderModule gradientShader = gradientResult.value();
 
             std::filesystem::path skyPath = std::filesystem::current_path() / ".." / "Shaders" / "sky.comp.spv";
-            auto skyResult = vkUtil::loadShaderModule(skyPath, m_device);
+            auto skyResult = vkUtil::PipelineBuilder::loadShaderModule(skyPath, m_device);
 
             if (!skyResult) {
                 opn::logError("VulkanBackend", "Failed to load sky shader: {}", skyResult.error());
@@ -639,6 +649,61 @@ export namespace opn {
                 for (auto& effect : m_backgroundEffects) {
                     vkDestroyPipeline(m_device, effect.pipeline, nullptr);
                 }
+            });
+        }
+
+        void createTrianglePipeleine() {
+            opn::logInfo("VulkanBackend", "Creating triangle pipeline...");
+
+            VkShaderModule triangleFragShader;
+            auto triangleFragShaderResult
+            = vkUtil::PipelineBuilder::loadShaderModule(std::filesystem::current_path() / ".." / "Shaders" / "triangle.frag.spv", m_device);
+            if (!triangleFragShaderResult) {
+                opn::logError("VulkanBackend", "Failed to load triangle shader: {}", triangleFragShaderResult.error());
+                return;
+            }
+            triangleFragShader = triangleFragShaderResult.value();
+
+            VkShaderModule triangleVertShader;
+            auto triangleVertShaderResult
+            = vkUtil::PipelineBuilder::loadShaderModule(std::filesystem::current_path() / ".." / "Shaders" / "triangle.vert.spv", m_device);
+            if (!triangleVertShaderResult) {
+                opn::logError("VulkanBackend", "Failed to load triangle shader: {}", triangleVertShaderResult.error());
+                return;
+            }
+            triangleVertShader = triangleVertShaderResult.value();
+
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkInit::pipeline_layout_create_info();
+            vkUtil::vkCheck(
+                vkCreatePipelineLayout( m_device
+                                      , &pipelineLayoutInfo
+                                      , nullptr
+                                      , &m_trianglePipelineLayout )
+                                      , "vkCreatePipelineLayout"
+            );
+
+            vkUtil::PipelineBuilder pipelineBuilder;
+
+            pipelineBuilder.m_pipelineLayout = m_trianglePipelineLayout;
+            pipelineBuilder.setShaders( triangleVertShader, triangleFragShader );
+            pipelineBuilder.setInputTopology( VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST );
+            pipelineBuilder.setPolygonMode( VK_POLYGON_MODE_FILL );
+            pipelineBuilder.setCullMode( VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+            pipelineBuilder.setMultisamplingNone();
+            pipelineBuilder.disableBlending();
+            pipelineBuilder.disableDepthTest();
+
+            pipelineBuilder.setColorAttachmentFormat( m_drawImage.format );
+            pipelineBuilder.setDepthFormat( VK_FORMAT_UNDEFINED );
+
+            m_trianglePipeline = pipelineBuilder.buildPipeline( m_device );
+
+            vkDestroyShaderModule( m_device, triangleFragShader, nullptr );
+            vkDestroyShaderModule( m_device, triangleVertShader, nullptr );
+
+            m_mainDeletionQueue.pushFunction( [ this ] {
+                vkDestroyPipelineLayout( m_device, m_trianglePipelineLayout, nullptr );
+                vkDestroyPipeline(m_device, m_trianglePipeline, nullptr);
             });
         }
 
@@ -845,10 +910,10 @@ export namespace opn {
 
                 ImGui::SliderInt("Effect Index", &m_currentBackgroundEffect,0, m_backgroundEffects.size() - 1);
 
-                ImGui::InputFloat4("data1",reinterpret_cast<float *>(&selected.data.data1));
-                ImGui::InputFloat4("data2",reinterpret_cast<float *>(&selected.data.data2));
-                ImGui::InputFloat4("data3",reinterpret_cast<float *>(&selected.data.data3));
-                ImGui::InputFloat4("data4",reinterpret_cast<float *>(&selected.data.data4));
+                ImGui::ColorEdit4("Colour 1", reinterpret_cast<float*>(&selected.data.data1));
+                ImGui::ColorEdit4("Colour 2", reinterpret_cast<float*>(&selected.data.data2));
+                ImGui::ColorEdit4("Colour 3", reinterpret_cast<float*>(&selected.data.data3));
+                ImGui::ColorEdit4("Colour 4", reinterpret_cast<float*>(&selected.data.data4));
             }
             ImGui::End();
 
@@ -903,6 +968,7 @@ export namespace opn {
             VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
+            // Begin commands
             vkUtil::vkCheck(vkBeginCommandBuffer( command, &cmdBeginInfo ), "vkBeginCommandBuffer");
             // some comments below to help me think better because im still not very good at this
 
@@ -919,10 +985,17 @@ export namespace opn {
             vkUtil::transition_image( command
                                     , m_drawImage.image
                                     , VK_IMAGE_LAYOUT_GENERAL
+                                    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+
+            drawGeometry( command );
+
+            vkUtil::transition_image( command
+                                    , m_drawImage.image
+                                    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                                     , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
             );
 
-            // prepare swapchain image for copying TO it
             vkUtil::transition_image( command
                                     , m_swapchainImages[imageIndex]
                                     , VK_IMAGE_LAYOUT_UNDEFINED
@@ -1106,6 +1179,42 @@ export namespace opn {
                          , static_cast< uint32_t >( std::ceil( m_drawImage.imageExtent.height / 16.0 ) )
                          , 1
             );
+        }
+
+        void drawGeometry( VkCommandBuffer _command ) {
+            VkRenderingAttachmentInfo colourAttachment = vkInit::attachment_info( m_drawImage.imageView
+                                                                                  , nullptr
+                                                                                  , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+            VkRenderingInfo renderInfo = vkInit::rendering_info( m_drawImageExtent
+                                                               , &colourAttachment
+                                                               , nullptr
+            );
+            vkCmdBeginRendering( _command, &renderInfo );
+
+            VkViewport viewport{};
+            viewport.x = 0;
+            viewport.y = 0;
+            viewport.width = static_cast<float>(m_drawImage.imageExtent.width);
+            viewport.height = static_cast<float>(m_drawImage.imageExtent.height);
+            viewport.minDepth = 0.f;
+            viewport.maxDepth = 1.f;
+
+            vkCmdSetViewport( _command, 0, 1, &viewport );
+
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = m_drawImageExtent;
+            vkCmdSetScissor( _command, 0, 1, &scissor );
+
+            vkCmdBindPipeline( _command
+                             , VK_PIPELINE_BIND_POINT_GRAPHICS
+                             , m_trianglePipeline
+            );
+
+            vkCmdDraw( _command, 3, 1, 0, 0 );
+
+            vkCmdEndRendering( _command );
         }
 
         void bindToWindow( WindowSurfaceProvider &_windowProvider ) override {

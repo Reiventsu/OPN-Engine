@@ -8,6 +8,10 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/Shaders")
 file(MAKE_DIRECTORY ${OUTPUT_DIR})
 
 foreach (SHADER_FILE ${SHADER_SOURCES})
+    if(NOT SHADER_FILE MATCHES "\\.(vert|frag|comp)\\.")
+        CONTINUE()
+    endif()
+
     get_filename_component(SHADER_NAME ${SHADER_FILE} NAME_WLE)
     set(OUTPUT_FILE "${OUTPUT_DIR}/${SHADER_NAME}.spv")
     set(DEP_FILE "${OUTPUT_DIR}/${SHADER_NAME}.d")
