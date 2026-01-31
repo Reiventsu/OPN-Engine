@@ -8,7 +8,7 @@ module;
 export module opn.Rendering.Util.vk.vkPipeline;
 import opn.Rendering.Util.vk.vkInit;
 import opn.Utils.Logging;
-export namespace vkUtil {
+export namespace opn::vkUtil {
     class PipelineBuilder {
     public:
         std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages{};

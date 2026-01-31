@@ -25,7 +25,7 @@ module;
 
 export module opn.Rendering.Util.vk.vkTypes;
 
-export namespace vkUtil {
+export namespace opn::vkUtil {
     struct sAllocatedImage {
         VkImage       image;
         VkImageView   imageView;

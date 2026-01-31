@@ -8,7 +8,7 @@ module;
 export module opn.Rendering.Util.vk.vkDescriptors;
 import opn.Rendering.Util.vk.vkTypes;
 
-export namespace vkDesc {
+export namespace opn::vkUtil {
     struct sDescriptorLayoutBuilder {
 
         std::pmr::vector<VkDescriptorSetLayoutBinding> bindings;

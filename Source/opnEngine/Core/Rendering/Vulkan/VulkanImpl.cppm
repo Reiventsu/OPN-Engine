@@ -108,7 +108,7 @@ export namespace opn {
         std::vector< VkFence >     m_imageInFlightFences;
         std::vector< VkSemaphore > m_renderFinishedSemaphores;
 
-        vkDesc::sDescriptorAllocator m_globalDescriptorAllocator{ };
+        vkUtil::sDescriptorAllocator m_globalDescriptorAllocator{ };
 
         VkDescriptorSet m_drawImageDescriptors{};
         VkDescriptorSetLayout m_drawImageDescriptorLayout{};
@@ -329,7 +329,7 @@ export namespace opn {
             m_renderFinishedSemaphores.assign(imageCount, VK_NULL_HANDLE);
             m_imageInFlightFences.assign(imageCount, VK_NULL_HANDLE);
 
-            VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
+            VkSemaphoreCreateInfo semaphoreCreateInfo = vkUtil::semaphore_create_info();
             for (size_t i = 0; i < imageCount; i++) {
                 vkUtil::vkCheck(
                     vkCreateSemaphore(m_device, &semaphoreCreateInfo, nullptr, &m_renderFinishedSemaphores[i]),
@@ -369,7 +369,7 @@ export namespace opn {
             drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
             drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-            VkImageCreateInfo rimgInfo = vkInit::image_create_info( m_drawImage.format
+            VkImageCreateInfo rimgInfo = vkUtil::image_create_info( m_drawImage.format
                                                                   , drawImageUsages
                                                                   , drawImageExtent
             );
@@ -387,7 +387,7 @@ export namespace opn {
                           , nullptr
             );
 
-            VkImageViewCreateInfo rViewInfo = vkInit::imageview_create_info( m_drawImage.format
+            VkImageViewCreateInfo rViewInfo = vkUtil::imageview_create_info( m_drawImage.format
                                                                            , m_drawImage.image
                                                                            , VK_IMAGE_ASPECT_COLOR_BIT
             );
@@ -426,7 +426,7 @@ export namespace opn {
         void createCommands() {
             opn::logInfo("VulkanBackend", "Creating command pools...");
             VkCommandPoolCreateInfo commandPoolInfo =
-                    vkInit::command_pool_create_info( m_graphicsQueueFamily
+                    vkUtil::command_pool_create_info( m_graphicsQueueFamily
                                                     , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT );
 
             for (auto &i: m_frameData) {
@@ -435,7 +435,7 @@ export namespace opn {
                                        , "vkCreateCommandPool"
                 );
 
-                VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(
+                VkCommandBufferAllocateInfo cmdAllocInfo = vkUtil::command_buffer_allocate_info(
                     i.commandPool, 1
                 );
 
@@ -451,7 +451,7 @@ export namespace opn {
             );
 
             VkCommandBufferAllocateInfo cmdAllocInfo =
-                vkInit::command_buffer_allocate_info( m_immediate.commandPool, 1 );
+                vkUtil::command_buffer_allocate_info( m_immediate.commandPool, 1 );
 
             vkUtil::vkCheck(
                 vkAllocateCommandBuffers( m_device, &cmdAllocInfo, &m_immediate.commandBuffer )
@@ -468,8 +468,8 @@ export namespace opn {
         void createSyncObjects() {
             opn::logInfo( "VulkanBackend", "Creating sync objects..." );
 
-            VkFenceCreateInfo     fenceCreateInfo     = vkInit::fence_create_info( VK_FENCE_CREATE_SIGNALED_BIT );
-            VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
+            VkFenceCreateInfo     fenceCreateInfo     = vkUtil::fence_create_info( VK_FENCE_CREATE_SIGNALED_BIT );
+            VkSemaphoreCreateInfo semaphoreCreateInfo = vkUtil::semaphore_create_info();
 
             for( auto &i: m_frameData ) {
                 vkUtil::vkCheck(
@@ -499,14 +499,14 @@ export namespace opn {
         void createDescriptors() {
             opn::logInfo("VulkanBackend", "Creating descriptor objects...");
 
-            std::vector< vkDesc::sDescriptorAllocator::sPoolSizeRatio > sizes = {
+            std::vector< vkUtil::sDescriptorAllocator::sPoolSizeRatio > sizes = {
                 { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
             };
 
             m_globalDescriptorAllocator.initPool( m_device, 10, sizes );
 
             {
-                vkDesc::sDescriptorLayoutBuilder builder;
+                vkUtil::sDescriptorLayoutBuilder builder;
                 builder.add_binding( 0
                                    , VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
                 );
@@ -733,7 +733,7 @@ export namespace opn {
             }
             triangleVertShader = triangleVertShaderResult.value();
 
-            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkInit::pipeline_layout_create_info();
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkUtil::pipeline_layout_create_info();
             vkUtil::vkCheck(
                 vkCreatePipelineLayout( m_device
                                       , &pipelineLayoutInfo
@@ -790,7 +790,7 @@ export namespace opn {
             pushConstantRange.size = sizeof( vkUtil::sGPUDrawPushConstants );
             pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkInit::pipeline_layout_create_info();
+            VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkUtil::pipeline_layout_create_info();
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
             pipelineLayoutInfo.pushConstantRangeCount = 1;
 
@@ -1096,7 +1096,7 @@ export namespace opn {
 
                 ImGui::Text("Selected effect: %s", selected.name.data());
 
-                ImGui::SliderInt("Effect Index", &m_currentBackgroundEffect,0, m_backgroundEffects.size() - 1);
+                ImGui::SliderInt("Effect Index", &m_currentBackgroundEffect,0, static_cast< int >( m_backgroundEffects.size() - 1 ) );
 
                 ImGui::ColorEdit4("Colour 1", reinterpret_cast<float*>(&selected.data.data1));
                 ImGui::ColorEdit4("Colour 2", reinterpret_cast<float*>(&selected.data.data2));
@@ -1153,7 +1153,7 @@ export namespace opn {
             VkCommandBuffer command = getCurrentFrame().commandBuffer;
             vkUtil::vkCheck(vkResetCommandBuffer( command, 0 ), "vkResetCommandBuffer");
 
-            VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(
+            VkCommandBufferBeginInfo cmdBeginInfo = vkUtil::command_buffer_begin_info(
                 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
             // Begin commands
@@ -1216,20 +1216,20 @@ export namespace opn {
 
             vkUtil::vkCheck(vkEndCommandBuffer( command ), "vkEndCommandBuffer");
 
-            VkCommandBufferSubmitInfo cmdSubmitInfo = vkInit::command_buffer_submit_info( command );
+            VkCommandBufferSubmitInfo cmdSubmitInfo = vkUtil::command_buffer_submit_info( command );
 
-            VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(
+            VkSemaphoreSubmitInfo waitInfo = vkUtil::semaphore_submit_info(
                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
                 getCurrentFrame().m_imageAvailableSemaphore
             );
 
             // Use the class member semaphore here
-            VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(
+            VkSemaphoreSubmitInfo signalInfo = vkUtil::semaphore_submit_info(
                 VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
                 m_renderFinishedSemaphores[imageIndex]
             );
 
-            VkSubmitInfo2 submitInfo = vkInit::submit_info( &cmdSubmitInfo
+            VkSubmitInfo2 submitInfo = vkUtil::submit_info( &cmdSubmitInfo
                                                           , &signalInfo
                                                           , &waitInfo
             );
@@ -1262,12 +1262,12 @@ export namespace opn {
         }
 
         void drawImGui( VkCommandBuffer _command, VkImageView _targetImageView ) {
-            VkRenderingAttachmentInfoKHR colorAttachment = vkInit::attachment_info( _targetImageView
+            VkRenderingAttachmentInfoKHR colorAttachment = vkUtil::attachment_info( _targetImageView
                                                                                   , nullptr
                                                                                   , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
 
-            VkRenderingInfo renderInfo = vkInit::rendering_info( m_swapchainExtent
+            VkRenderingInfo renderInfo = vkUtil::rendering_info( m_swapchainExtent
                                                                , &colorAttachment
                                                                , nullptr
             );
@@ -1294,7 +1294,7 @@ export namespace opn {
             );
 
             VkCommandBuffer command = m_immediate.commandBuffer;
-            VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info();
+            VkCommandBufferBeginInfo cmdBeginInfo = vkUtil::command_buffer_begin_info();
 
             vkUtil::vkCheck(
                 vkBeginCommandBuffer( command, &cmdBeginInfo )
@@ -1311,10 +1311,10 @@ export namespace opn {
             );
 
             VkCommandBufferSubmitInfo cmdSubmitInfo =
-                vkInit::command_buffer_submit_info( command );
+                vkUtil::command_buffer_submit_info( command );
 
             VkSubmitInfo2 submitInfo =
-                vkInit::submit_info( &cmdSubmitInfo, nullptr, nullptr );
+                vkUtil::submit_info( &cmdSubmitInfo, nullptr, nullptr );
 
             vkUtil::vkCheck(
                 vkQueueSubmit2( m_graphicsQueue, 1, &submitInfo, m_immediate.fence )
@@ -1370,11 +1370,11 @@ export namespace opn {
         }
 
         void drawGeometry( VkCommandBuffer _command ) {
-            VkRenderingAttachmentInfo colourAttachment = vkInit::attachment_info( m_drawImage.imageView
+            VkRenderingAttachmentInfo colourAttachment = vkUtil::attachment_info( m_drawImage.imageView
                                                                                   , nullptr
                                                                                   , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
-            VkRenderingInfo renderInfo = vkInit::rendering_info( m_drawImageExtent
+            VkRenderingInfo renderInfo = vkUtil::rendering_info( m_drawImageExtent
                                                                , &colourAttachment
                                                                , nullptr
             );

@@ -4,7 +4,7 @@ export module opn.Rendering.Util.vk.vkImage;
 import opn.Rendering.Util.vk.vkInit;
 import opn.Utils.Logging;
 
-export namespace vkUtil {
+export namespace opn::vkUtil {
 
     void transition_image( VkCommandBuffer _cmd
                          , VkImage         _image
