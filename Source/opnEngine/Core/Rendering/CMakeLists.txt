@@ -30,6 +30,8 @@ target_link_libraries(RenderHelpers
         glfw
         vk-bootstrap
         hlslpp
+        simdjson
+        fastgltf::fastgltf
 )
 
 add_library(Renderer)

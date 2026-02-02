@@ -1,6 +1,8 @@
 add_subdirectory(vk-bootstrap)
 add_subdirectory(HLSL++)
 add_subdirectory(VulkanMemoryAllocator)
+add_subdirectory(simdJSON)
+add_subdirectory(FastGLTF)
 
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ImGui)
 
@@ -31,4 +33,6 @@ target_link_libraries(Third-Party INTERFACE
         HLSL++
         VulkanMemoryAllocator
         imgui
+        simdjson
+        fastGLTF
 )

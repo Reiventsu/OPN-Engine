@@ -18,7 +18,7 @@ target_sources(Services
         FILE_SET CXX_MODULES FILES
         SystemsPackage.cppm
         Time.cppm
-        AssetSystem.cppm
+        AssetService/AssetSystem.cppm
         WindowSystem.cppm
         Rendering.cppm
         EntityComponentSystem/ECS.cppm
