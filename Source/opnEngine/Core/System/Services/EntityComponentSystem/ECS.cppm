@@ -1,1 +1,1 @@
-export module opn.System.Services.ECS;
+export module opn.System.ECS;

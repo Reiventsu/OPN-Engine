@@ -926,6 +926,7 @@ export namespace opn {
             vmaDestroyBuffer( m_vmaAllocator, _buffer.buffer, _buffer.allocation );
         }
 
+    public:
         vkUtil::sGPUMeshBuffers uploadMesh(std::span<uint32_t> _indices, std::span<vkUtil::sVertex> _vertices) {
             vkUtil::sGPUMeshBuffers newSurface{};
 
@@ -980,7 +981,6 @@ export namespace opn {
             return newSurface;
         }
 
-    public:
         void init() override {
             if (m_isInitialized.exchange(true))
                 throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");

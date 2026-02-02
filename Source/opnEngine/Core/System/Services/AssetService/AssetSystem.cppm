@@ -88,14 +88,12 @@ namespace opn {
 
     export struct CommandAssetLoad {
         std::string assetPath;
-
-        void operator()() const;
+        void operator()();
     };
 
     export struct CommandAssetUnload {
         std::string assetPath;
-
-        void operator()() const;
+        void operator()();
     };
 
     export class AssetSystem final : public Service<AssetSystem> {
@@ -169,16 +167,16 @@ namespace opn {
         void unloadInternal(const std::string &_path) {}
     };
 
-    void CommandAssetLoad::operator()() const {
-        if (const auto *sys = AssetSystem::getService()) {
+    void CommandAssetLoad::operator()() {
+        if ( auto *sys = AssetSystem::getService()) {
             sys->loadInternal(assetPath);
         } else {
             logError("AssetService", "Failed to load asset {} as AssetSystem is not initialized.", assetPath);
         }
     }
 
-    void CommandAssetUnload::operator()() const {
-        if (const auto *sys = AssetSystem::getService()) {
+    void CommandAssetUnload::operator()() {
+        if (auto *sys = AssetSystem::getService()) {
             sys->unloadInternal(assetPath);
         }
     }
