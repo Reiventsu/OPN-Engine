@@ -4,14 +4,86 @@ module;
 #include <string>
 #include <thread>
 #include <vector>
+#include <shared_mutex>
+
+#include <fastgltf/core.hpp>
 
 export module opn.System.Service.AssetSystem;
 import opn.System.ServiceInterface;
 import opn.System.JobDispatcher;
 import opn.Utils.Logging;
+import opn.System.UUID;
 import opn.System.ServiceManager;
 
+import opn.Assets.AssetDefines;
+
 namespace opn {
+    struct cmd_UploadMesh;
+    struct cmd_UploadTexture;
+
+    using uAsset = std::variant< Mesh, Texture, Material >;
+
+    enum class eAssetErrorType {
+        FileNotFound,
+        ParsingError,
+        UnsupportedFileType,
+        OutOfMemory,
+        InvalidData,
+    };
+
+    enum class eAssetState {
+        Uninitialized,
+        Loading,
+        Uploading,
+        Ready,
+        Failed,
+    };
+
+    struct sAssetError {
+
+        eAssetErrorType type;
+        std::string path;
+        std::string details;
+
+        [[nodiscard]] std::string toString() const {
+            return std::format("[{}] {}: {}", errorTypeToString(type), path, details);
+        };
+
+    private:
+        static std::string_view errorTypeToString(const eAssetErrorType _type) {
+            switch (_type) {
+                case eAssetErrorType::FileNotFound:        return "FileNotFound";
+                case eAssetErrorType::ParsingError:        return "ParsingError";
+                case eAssetErrorType::UnsupportedFileType: return "UnsupportedFileType";
+                case eAssetErrorType::OutOfMemory:         return "OutOfMemory";
+                case eAssetErrorType::InvalidData:         return "InvalidData";
+                default: return "Unknown";
+            }
+        }
+    };
+
+    struct sAssetMetadata {
+        eAssetState state = eAssetState::Uninitialized;
+        std::string path;
+        std::variant< opn::Mesh, opn::Texture, opn::Material > data;
+    };
+
+    struct sAssetHandle {
+        UUID id;
+        constexpr sAssetHandle() : id{} {}
+        constexpr sAssetHandle(UUID _id) : id{_id} {}
+
+        bool isValid() const { return id.isValid(); };
+
+        bool operator==(const sAssetHandle&) const = default;
+    };
+
+    struct sAssetHandleHasher {
+        size_t operator()(const sAssetHandle& _handle) const {
+            return UUIDHasher{}(_handle.id);
+        }
+    };
+
     export class AssetSystem;
 
     export struct CommandAssetLoad {
@@ -29,6 +101,14 @@ namespace opn {
     export class AssetSystem final : public Service<AssetSystem> {
         friend struct CommandAssetLoad;
         friend struct CommandAssetUnload;
+
+        std::unordered_map< UUID, uAsset, UUIDHasher > m_assets;
+        std::unordered_map< std::string, UUID >        m_pathToHandle;
+        std::unordered_map< UUID, size_t, UUIDHasher > m_refCounts;
+
+        mutable std::shared_mutex m_assetsMutex;
+        fastgltf::Parser m_fastgltfParser;
+        std::vector<std::jthread> m_workers;
 
     public:
         [[nodiscard]] static CommandAssetLoad load(std::string path) { return CommandAssetLoad{std::move(path)}; }
@@ -78,22 +158,15 @@ namespace opn {
             }
         }
 
-        std::vector<std::jthread> m_workers;
 
         /// Asset functions n stuff
 
 
         /// TODO make these not dummy functions
 
-        void loadInternal(const std::string &_path) const {
-            logInfo("AssetSystem", "Worker loading: {}", _path);
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            logInfo("AssetSystem", "Worker finished: {}", _path);
-        }
+        void loadInternal(const std::string &_path) {}
 
-        void unloadInternal(const std::string &_path) const {
-            logInfo("AssetSystem", "Unloading: {}", _path);
-        }
+        void unloadInternal(const std::string &_path) {}
     };
 
     void CommandAssetLoad::operator()() const {
