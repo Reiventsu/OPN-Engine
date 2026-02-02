@@ -4,7 +4,7 @@ module;
 #include <functional>
 #include <random>
 
-export module opn.system.UUID;
+export module opn.System.UUID;
 
 export namespace opn {
     struct UUID {
