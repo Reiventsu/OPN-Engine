@@ -25,7 +25,7 @@ export namespace opn::vkUtil {
         VkImageAspectFlags aspectMask = (_newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL)
                                                      ? VK_IMAGE_ASPECT_DEPTH_BIT
                                                      : VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBarrier.subresourceRange = vkInit::image_subresource_range( aspectMask );
+        imageBarrier.subresourceRange = image_subresource_range( aspectMask );
         imageBarrier.image            = _image;
 
         VkDependencyInfo depInfo = {

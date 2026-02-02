@@ -142,10 +142,10 @@ export namespace opn::vkUtil {
             m_shaderStages.clear();
 
             m_shaderStages.push_back(
-                vkInit::pipeline_shader_stage_create_info( VK_SHADER_STAGE_VERTEX_BIT, _vertexShader ) );
+                pipeline_shader_stage_create_info( VK_SHADER_STAGE_VERTEX_BIT, _vertexShader ) );
 
             m_shaderStages.push_back(
-                vkInit::pipeline_shader_stage_create_info( VK_SHADER_STAGE_FRAGMENT_BIT, _fragmentShader ) );
+                pipeline_shader_stage_create_info( VK_SHADER_STAGE_FRAGMENT_BIT, _fragmentShader ) );
         }
 
         void setInputTopology( VkPrimitiveTopology _topology ) {
