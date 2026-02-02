@@ -4,6 +4,7 @@ target_sources(Thread
         PUBLIC
         FILE_SET CXX_MODULES FILES
         SPSCQueue.cppm
+        MPSCQueue.cppm
         RawSPSCQueue.cppm
 )
 

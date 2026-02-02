@@ -12,7 +12,7 @@ module;
 
 export module opn.System.JobDispatcher;
 
-import opn.System.Thread.SPSCQueue;
+import opn.System.Thread.MPSCQueue;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
 
@@ -53,10 +53,10 @@ export namespace opn {
 
         inline static std::array<std::atomic<uint32_t>, static_cast<size_t>(eJobType::COUNT)> s_queueSignals{};
 
-        inline static SPSCQueue<sTask, QUEUE_SIZE> s_generalQueue;
-        inline static SPSCQueue<sTask, QUEUE_SIZE> s_assetQueue;
-        inline static SPSCQueue<sTask, QUEUE_SIZE> s_audioQueue;
-        inline static SPSCQueue<sTask, QUEUE_SIZE> s_renderQueue;
+        inline static MPSCQueue<sTask, QUEUE_SIZE> s_generalQueue;
+        inline static MPSCQueue<sTask, QUEUE_SIZE> s_assetQueue;
+        inline static MPSCQueue<sTask, QUEUE_SIZE> s_audioQueue;
+        inline static MPSCQueue<sTask, QUEUE_SIZE> s_renderQueue;
 
         inline static std::atomic<uint32_t> s_nextFenceID{0};
         inline static std::array<std::atomic<int32_t>, MAX_FENCES> s_fencePool{};
