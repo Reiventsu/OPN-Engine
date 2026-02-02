@@ -2,8 +2,15 @@ module;
 
 #include <atomic>
 #include <bit>
+#include <new>
 
 export module opn.System.Thread.MPSCQueue;
+
+#ifdef __cpp_lib_hardware_interference_size
+using std::hardware_destructive_interference_size;
+#else
+constexpr std::size_t hardware_destructive_interference_size = 64;
+#endif
 
 export namespace opn {
     template< typename T, size_t Size >
@@ -14,14 +21,14 @@ export namespace opn {
             std::atomic_bool isReady{ false };
         };
 
-        alignas( 64 ) std::atomic< size_t > m_head;
-        alignas( 64 ) std::atomic< size_t > m_tail;
+        alignas( hardware_destructive_interference_size ) std::atomic< size_t > m_head;
+        alignas( hardware_destructive_interference_size ) std::atomic< size_t > m_tail;
         sSlot m_data[Size];
 
     public:
         constexpr MPSCQueue() noexcept : m_head( 0 ), m_tail( 0 ) {}
 
-        [[nodiscard]] constexpr bool push( T &&_item ) noexcept {
+        [[nodiscard]] constexpr bool push( T &&_item ) noexcept(std::is_nothrow_move_assignable_v<T>) {
             size_t head = m_head.load( std::memory_order_relaxed );
             size_t next;
 
@@ -32,12 +39,12 @@ export namespace opn {
                 }
             } while ( !m_head.compare_exchange_weak( head, next, std::memory_order_relaxed ) );
 
-            m_data[head] = std::move( _item );
+            m_data[head].data = std::move( _item );
             m_data[head].isReady.store( true, std::memory_order_release );
             return true;
         }
 
-        [[nodiscard]] constexpr bool pop( T &_outItem ) noexcept {
+        [[nodiscard]] constexpr bool pop( T &_outItem ) noexcept(std::is_nothrow_move_assignable_v<T>) {
             const size_t tail = m_tail.load( std::memory_order_relaxed );
 
             if( tail == m_head.load( std::memory_order_acquire ) ) {
@@ -53,19 +60,19 @@ export namespace opn {
             return true;
         }
 
-        [[nodiscard]] constexpr bool isEmpty() noexcept {
+        [[nodiscard]] constexpr bool isEmpty() const noexcept {
             return m_head.load( std::memory_order_acquire ) ==
                    m_tail.load( std::memory_order_acquire );
         }
 
-        [[nodiscard]] constexpr size_t size() noexcept {
+        [[nodiscard]] constexpr size_t size() const noexcept {
             const size_t head = m_head.load( std::memory_order_relaxed );
             const size_t tail = m_tail.load( std::memory_order_acquire );
             return (head - tail) & ( Size - 1 );
         }
 
-        bool operator<<(T&& _item) noexcept { return push(std::move(_item)); }
-        bool operator>>(T&& _item) noexcept { return pop(std::move(_item)); }
+        bool operator<<(T&& _item) noexcept(std::is_nothrow_move_assignable_v<T>) { return push(std::move(_item)); }
+        bool operator>>(T&& _item) noexcept(std::is_nothrow_move_assignable_v<T>) { return pop(std::move(_item)); }
         explicit operator bool() const noexcept { return !isEmpty(); }
     };
 }

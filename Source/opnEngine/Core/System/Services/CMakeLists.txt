@@ -13,12 +13,20 @@ target_link_libraries(WindowingInterface
 
 add_library(Services)
 
+
 target_sources(Services
         PUBLIC
         FILE_SET CXX_MODULES FILES
+        # Asset related
+        AssetService/meshDefine.cppm
+        AssetService/textureDefine.cppm
+        AssetService/materialDefine.cppm
+        AssetService/AssetSystem.cppm
+        AssetService/AssetDefines.cppm
+
+        # Others
         SystemsPackage.cppm
         Time.cppm
-        AssetService/AssetSystem.cppm
         WindowSystem.cppm
         Rendering.cppm
         EntityComponentSystem/ECS.cppm

@@ -21,7 +21,7 @@ namespace opn {
     struct cmd_UploadMesh;
     struct cmd_UploadTexture;
 
-    using uAsset = std::variant< Mesh, Texture, Material >;
+    using tAsset = std::variant< Mesh, Texture, Material >;
 
     enum class eAssetErrorType {
         FileNotFound,

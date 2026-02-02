@@ -29,6 +29,8 @@ export namespace opn {
         std::move_only_function<void()> execute;
         uint32_t fenceID = 0;
 
+        sTask(sTask &&other) noexcept = default;
+        sTask &operator=(sTask &&other) noexcept = default;
         sTask() = default;
     };
 
@@ -63,7 +65,7 @@ export namespace opn {
 
     public:
         static void init(const std::source_location loc = std::source_location::current()) {
-            if (initialized.exchange(true))
+            if (initialized.exchange(true, std::memory_order_acq_rel))
                 throw MultipleInit_Exception("JobDispatcher", loc);
 
             for (auto &f: s_fencePool) f.store(0, std::memory_order_release);
@@ -110,7 +112,7 @@ export namespace opn {
             signal.notify_all();
         }
 
-        static SPSCQueue<sTask, QUEUE_SIZE> &getQueue(const eJobType _type) noexcept {
+        static MPSCQueue<sTask, QUEUE_SIZE> &getQueue(const eJobType _type) noexcept {
             switch (_type) {
                 case eJobType::General: return s_generalQueue;
                 case eJobType::Asset: return s_assetQueue;
