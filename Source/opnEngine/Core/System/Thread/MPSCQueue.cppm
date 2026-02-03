@@ -72,7 +72,7 @@ export namespace opn {
         }
 
         bool operator<<(T&& _item) noexcept(std::is_nothrow_move_assignable_v<T>) { return push(std::move(_item)); }
-        bool operator>>(T&& _item) noexcept(std::is_nothrow_move_assignable_v<T>) { return pop(std::move(_item)); }
+        bool operator>>(T& _item) noexcept(std::is_nothrow_move_assignable_v<T>) { return pop(_item); }
         explicit operator bool() const noexcept { return !isEmpty(); }
     };
 }

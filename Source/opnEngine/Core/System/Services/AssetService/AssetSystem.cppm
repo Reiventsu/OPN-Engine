@@ -68,7 +68,7 @@ namespace opn {
         std::variant< opn::Mesh, opn::Texture, opn::Material > data;
     };
 
-    struct sAssetHandle {
+    export struct sAssetHandle {
         UUID id;
         constexpr sAssetHandle() : id{} {}
         constexpr sAssetHandle(UUID _id) : id{_id} {}
@@ -78,7 +78,7 @@ namespace opn {
         bool operator==(const sAssetHandle&) const = default;
     };
 
-    struct sAssetHandleHasher {
+    export struct sAssetHandleHasher {
         size_t operator()(const sAssetHandle& _handle) const {
             return UUIDHasher{}(_handle.id);
         }
@@ -105,7 +105,7 @@ namespace opn {
         std::unordered_map< UUID, size_t, UUIDHasher > m_refCounts;
 
         mutable std::shared_mutex m_assetsMutex;
-        fastgltf::Parser m_fastgltfParser;
+        fastgltf::Parser m_gltfParser;
         std::vector<std::jthread> m_workers;
 
     public:

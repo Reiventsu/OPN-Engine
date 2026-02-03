@@ -1,3 +1,5 @@
+include_directories(EntityComponentSystem)
+
 add_library(WindowingInterface)
 
 target_sources(WindowingInterface
@@ -12,7 +14,6 @@ target_link_libraries(WindowingInterface
 )
 
 add_library(Services)
-
 
 target_sources(Services
         PUBLIC
@@ -29,13 +30,13 @@ target_sources(Services
         Time.cppm
         WindowSystem.cppm
         Rendering.cppm
-        EntityComponentSystem/ECS.cppm
 )
 
 target_link_libraries(Services
         PUBLIC
         CoreSystems
         CoreUtils
+        EntityComponentSystem
         WindowingInterface
         RenderInterface
         glfw

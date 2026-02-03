@@ -1,4 +1,5 @@
 add_library(hlslpp INTERFACE)
+target_compile_definitions(hlslpp INTERFACE HLSLPP_FEATURE_TRANSFORM)
 
 target_sources(hlslpp
         INTERFACE
