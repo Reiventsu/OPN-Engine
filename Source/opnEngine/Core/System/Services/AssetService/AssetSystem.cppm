@@ -100,7 +100,7 @@ namespace opn {
         friend struct CommandAssetLoad;
         friend struct CommandAssetUnload;
 
-        std::unordered_map< UUID, uAsset, UUIDHasher > m_assets;
+        std::unordered_map< UUID, tAsset, UUIDHasher > m_assets;
         std::unordered_map< std::string, UUID >        m_pathToHandle;
         std::unordered_map< UUID, size_t, UUIDHasher > m_refCounts;
 
