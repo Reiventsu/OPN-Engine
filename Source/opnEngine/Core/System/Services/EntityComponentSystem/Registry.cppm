@@ -18,7 +18,7 @@ export namespace opn {
             public:
             virtual ~iComponentPool() = default;
             virtual void remove(tEntity _entity) = 0;
-            virtual bool has(tEntity _entity) const = 0;
+            [[nodiscard]] virtual bool has(tEntity _entity) const = 0;
         };
 
         template <typename T>
@@ -41,7 +41,7 @@ export namespace opn {
 
             void remove(tEntity _entity) override {
                 auto itr = m_entityIndex.find(_entity);
-                if (itr != m_entityIndex.end()) return;
+                if (itr == m_entityIndex.end()) return;
 
                 size_t index = itr->second;
                 size_t lastIndex = m_entities.size() - 1;

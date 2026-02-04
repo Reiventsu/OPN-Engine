@@ -7,3 +7,8 @@ target_sources(components
         Renderable.cppm
         Transform.cppm
 )
+
+target_link_libraries(components
+        PUBLIC
+        hlslpp
+)

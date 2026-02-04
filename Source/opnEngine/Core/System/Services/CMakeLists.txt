@@ -1,4 +1,4 @@
-include_directories(EntityComponentSystem)
+add_subdirectory(EntityComponentSystem)
 
 add_library(WindowingInterface)
 

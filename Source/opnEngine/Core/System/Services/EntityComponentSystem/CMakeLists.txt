@@ -1,3 +1,4 @@
+add_subdirectory(Components)
 add_library(EntityComponentSystem)
 
 target_sources(EntityComponentSystem
@@ -7,4 +8,7 @@ target_sources(EntityComponentSystem
         ECS.cppm
 )
 
-target_link_libraries(EntityComponentSystem PUBLIC components)
+target_link_libraries(EntityComponentSystem
+        PUBLIC
+        components
+)
