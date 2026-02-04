@@ -4,7 +4,7 @@ import opn.System.UUID;
 export namespace opn {
     struct sAssetHandle {
         UUID id;
-        constexpr sAssetHandle() : id{} {}
+        constexpr sAssetHandle() = default;
         explicit constexpr sAssetHandle(UUID _id) : id{_id} {}
 
         [[nodiscard]] bool isValid() const { return id.isValid(); };

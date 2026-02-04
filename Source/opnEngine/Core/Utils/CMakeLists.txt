@@ -3,10 +3,9 @@ add_library(CoreUtils)
 target_sources(CoreUtils
         PUBLIC
         FILE_SET CXX_MODULES FILES
-        iSingleton.cppm
+        # Utilities
         Logger.cppm
+
+        # Exceptions
+        Exceptions/Except_MultipleInit.cppm
 )
-
-
-add_subdirectory(Exceptions)
-target_link_libraries(CoreUtils PUBLIC Exceptions)

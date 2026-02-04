@@ -1,43 +1,15 @@
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 
-add_subdirectory(Plugins)
-add_subdirectory(Core)
+# Added in order of dependency
+add_subdirectory(Dependencies)
+add_subdirectory(Core/Utils)
+add_subdirectory(Core/System/Thread)
+add_subdirectory(Core/System)
+add_subdirectory(Core/System/Services/AssetService)
+add_subdirectory(Core/System/Services/EntityComponentSystem/Components)
+add_subdirectory(Core/System/Services/EntityComponentSystem)
+add_subdirectory(Core/Rendering)
+add_subdirectory(Core/System/Services)
 add_subdirectory(Core/Shaders)
-
-add_library(EngineServices)
-
-target_sources(EngineServices
-        PUBLIC
-        FILE_SET CXX_MODULES FILES
-        Standalone/EngineServices.cppm
-)
-
-target_link_libraries(EngineServices
-        PUBLIC
-        CoreSystems
-        Services
-        Renderer
-)
-
-add_executable(OPN_Engine
-        Standalone/main.cpp)
-
-target_link_libraries(OPN_Engine
-        PRIVATE
-        CoreUtils
-        CoreSystems
-        WindowingInterface
-        RenderInterface
-        Services
-        Renderer
-        EngineServices
-)
-
-target_include_directories(OPN_Engine
-        PUBLIC
-        Plugins
-        Core
-)
-
-add_dependencies(OPN_Engine CompileShaders)
+add_subdirectory(Entrypoint)

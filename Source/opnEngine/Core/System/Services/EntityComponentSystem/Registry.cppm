@@ -8,15 +8,16 @@ module;
 #include <unordered_map>
 #include <vector>
 
-export module opn.ECS.Registry;
+export module opn.ECS:Registry;
 
 export namespace opn {
+    class ECS;
     using tEntity = uint32_t;
     constexpr tEntity NULL_ENTITY = UINT32_MAX;
 
     namespace detail {
         class iComponentPool {
-            public:
+        public:
             virtual ~iComponentPool() = default;
             virtual void remove(tEntity _entity) = 0;
             [[nodiscard]] virtual bool has(tEntity _entity) const = 0;
@@ -24,10 +25,14 @@ export namespace opn {
 
         template <typename T>
         class ComponentPool : public iComponentPool {
+            friend class Registry;
+
+            // data
             std::unordered_map<tEntity, size_t> m_entityIndex;
             std::vector<T> m_components;
             std::vector<tEntity> m_entities;
-            public:
+
+            // methods
             void insert(tEntity _entity, T _component) {
                 if( m_entityIndex.contains(_entity)) {
                     m_components[m_entityIndex[_entity]] = std::move(_component);
@@ -80,12 +85,16 @@ export namespace opn {
             const auto& entities() const {return m_entities;}
         };
     }
+
     class Registry {
+        friend class ECS;
+
+        // data
         tEntity m_nextEntity{0};
         std::queue<tEntity> m_recycledEntities;
-
         std::unordered_map<std::type_index, std::unique_ptr<detail::iComponentPool>> m_componentPools;
 
+        // methods
         template<typename T>
         detail::ComponentPool<T>* getPool() {
             auto typeIndex = std::type_index(typeid(T));
@@ -95,7 +104,7 @@ export namespace opn {
             }
             return static_cast<detail::ComponentPool<T>*>(m_componentPools[typeIndex].get());
         }
-    public:
+
         tEntity create() {
             if (!m_recycledEntities.empty()) {
                 tEntity entity = m_recycledEntities.front();
@@ -132,7 +141,7 @@ export namespace opn {
         }
 
         template<typename T>
-        bool hasComponent(tEntity _entity) const {
+        [[nodiscard]] bool hasComponent(tEntity _entity) const {
             auto typeIndex = std::type_index(typeid(T));
             if (!m_componentPools.contains(typeIndex)) return false;
             return m_componentPools.at(typeIndex)->has(_entity);

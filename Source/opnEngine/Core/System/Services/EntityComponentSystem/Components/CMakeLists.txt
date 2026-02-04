@@ -1,6 +1,6 @@
-add_library(components)
+add_library(Components)
 
-target_sources(components
+target_sources(Components
         PUBLIC
         FILE_SET CXX_MODULES FILES
         Components.cppm
@@ -8,8 +8,8 @@ target_sources(components
         Transform.cppm
 )
 
-target_link_libraries(components
-        PRIVATE
-        Services
+target_link_libraries(Components
+        PUBLIC
+        AssetTypes
         hlslpp
 )

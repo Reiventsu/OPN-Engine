@@ -1,5 +1,3 @@
-add_subdirectory(EntityComponentSystem)
-
 add_library(WindowingInterface)
 
 target_sources(WindowingInterface
@@ -11,6 +9,7 @@ target_sources(WindowingInterface
 target_link_libraries(WindowingInterface
         PUBLIC
         Vulkan::Vulkan
+        glfw
 )
 
 add_library(Services)
@@ -18,28 +17,22 @@ add_library(Services)
 target_sources(Services
         PUBLIC
         FILE_SET CXX_MODULES FILES
-        # Asset related
-        AssetService/meshDefine.cppm
-        AssetService/textureDefine.cppm
-        AssetService/materialDefine.cppm
-        AssetService/AssetSystem.cppm
-        AssetService/AssetDefines.cppm
-        AssetService/AssetTypes.cppm
-
-        # Others
-        SystemsPackage.cppm
         Time.cppm
         WindowSystem.cppm
         Rendering.cppm
+        AssetService/AssetSystem.cppm
+        SystemsPackage.cppm
 )
 
 target_link_libraries(Services
         PUBLIC
         CoreSystems
         CoreUtils
-        EntityComponentSystem
+        AssetTypes
+        AssetDefines
         WindowingInterface
         RenderInterface
+        EntityComponentSystem
         glfw
         RenderHelpers
         imgui

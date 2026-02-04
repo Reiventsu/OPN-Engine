@@ -9,7 +9,7 @@ set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ImGui)
 add_library(imgui INTERFACE)
 
 target_compile_definitions(imgui INTERFACE
-        IMGUI_USER_CONFIG="${CMAKE_SOURCE_DIR}/Source/opnEngine/Plugins/Third-Party/OPN_imconfig.h"
+        IMGUI_USER_CONFIG="${CMAKE_SOURCE_DIR}/Source/opnEngine/Dependencies/Third-Party/OPN_imconfig.h"
 )
 
 

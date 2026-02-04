@@ -3,11 +3,11 @@ add_library(CoreSystems)
 target_sources(CoreSystems
         PUBLIC
         FILE_SET CXX_MODULES FILES
-        JobDispatcher.cppm
-        ServiceManager.cppm
+        UUID.cppm
         SystemTypeList.cppm
         iService.cppm
-        UUID.cppm
+        ServiceManager.cppm
+        JobDispatcher.cppm
 )
 
 target_link_libraries(CoreSystems
@@ -15,6 +15,3 @@ target_link_libraries(CoreSystems
         CoreUtils
         Thread
 )
-
-add_subdirectory(Services)
-add_subdirectory(Thread)

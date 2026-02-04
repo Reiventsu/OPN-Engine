@@ -1,4 +1,4 @@
-export module opn.ECS.Components.Renderable;
+export module opn.ECS.Components:Renderable;
 import opn.Assets.Types;
 
 export namespace opn::components {

@@ -1,6 +1,6 @@
 module;
 #include "hlsl++.h"
-export module opn.ECS.Components.Transform;
+export module opn.ECS.Components:Transform;
 
 export namespace opn::components {
     struct Transform {

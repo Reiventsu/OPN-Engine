@@ -10,6 +10,8 @@ module;
 #include <unordered_map>
 #include <mutex>
 
+#include <bit>
+
 export module opn.System.JobDispatcher;
 
 import opn.System.Thread.MPSCQueue;
@@ -29,9 +31,16 @@ export namespace opn {
         std::move_only_function<void()> execute;
         uint32_t fenceID = 0;
 
-        sTask(sTask &&other) noexcept = default;
-        sTask &operator=(sTask &&other) noexcept = default;
         sTask() = default;
+        sTask(sTask&& other) noexcept :
+            execute(std::move(other.execute)),
+            fenceID(other.fenceID) {}
+
+        sTask& operator=(sTask&& other) noexcept {
+            execute = std::move(other.execute);
+            fenceID = other.fenceID;
+            return *this;
+        }
     };
 
     struct sJobHandle;

@@ -13,12 +13,12 @@ add_library(RenderHelpers)
 target_sources(RenderHelpers
         PUBLIC
         FILE_SET CXX_MODULES FILES
-        Vulkan/vkUtil.cppm
-        Vulkan/vkInit.cppm
         Vulkan/vkTypes.cppm
+        Vulkan/vkInit.cppm
         Vulkan/vkImage.cppm
         Vulkan/vkDescriptors.cppm
         Vulkan/vkPipeline.cppm
+        Vulkan/vkUtil.cppm
 )
 
 target_link_libraries(RenderHelpers
@@ -35,13 +35,12 @@ target_link_libraries(RenderHelpers
 
 add_library(Renderer)
 
-target_link_libraries(Renderer
+target_sources(Renderer
         PUBLIC
-        EngineServices
-        RenderHelpers
-        RenderInterface
-        WindowingInterface
-        imgui
+        FILE_SET CXX_MODULES FILES
+        RenderPackage.cppm
+        Vulkan/VulkanImpl.cppm
+        DirectX/DirectXImpl.cppm
 )
 
 target_sources(Renderer
@@ -50,13 +49,12 @@ target_sources(Renderer
         Vulkan/VMAImplementation.cpp
 )
 
-target_sources(Renderer
+target_link_libraries(Renderer
         PUBLIC
-        FILE_SET CXX_MODULES FILES
-
-        RenderPackage.cppm
-
-        Vulkan/VulkanImpl.cppm
-
-        DirectX/DirectXImpl.cppm
+        RenderHelpers
+        RenderInterface
+        WindowingInterface
+        imgui
+        CoreSystems
 )
+
