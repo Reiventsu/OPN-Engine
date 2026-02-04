@@ -9,6 +9,7 @@ target_sources(components
 )
 
 target_link_libraries(components
-        PUBLIC
+        PRIVATE
+        Services
         hlslpp
 )

@@ -24,6 +24,7 @@ target_sources(Services
         AssetService/materialDefine.cppm
         AssetService/AssetSystem.cppm
         AssetService/AssetDefines.cppm
+        AssetService/AssetTypes.cppm
 
         # Others
         SystemsPackage.cppm

@@ -14,8 +14,9 @@ import opn.System.JobDispatcher;
 import opn.Utils.Logging;
 import opn.System.UUID;
 import opn.System.ServiceManager;
+import opn.Assets.Defines;
+import opn.Assets.Types;
 
-import opn.Assets.AssetDefines;
 
 namespace opn {
     struct cmd_UploadMesh;
@@ -66,22 +67,6 @@ namespace opn {
         eAssetState state = eAssetState::Uninitialized;
         std::string path;
         std::variant< opn::Mesh, opn::Texture, opn::Material > data;
-    };
-
-    export struct sAssetHandle {
-        UUID id;
-        constexpr sAssetHandle() : id{} {}
-        constexpr sAssetHandle(UUID _id) : id{_id} {}
-
-        bool isValid() const { return id.isValid(); };
-
-        bool operator==(const sAssetHandle&) const = default;
-    };
-
-    export struct sAssetHandleHasher {
-        size_t operator()(const sAssetHandle& _handle) const {
-            return UUIDHasher{}(_handle.id);
-        }
     };
 
     export class AssetSystem;

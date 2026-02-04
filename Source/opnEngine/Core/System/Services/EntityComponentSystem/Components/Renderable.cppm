@@ -1,5 +1,5 @@
 export module opn.ECS.Components.Renderable;
-import opn.System.Service.AssetSystem;
+import opn.Assets.Types;
 
 export namespace opn::components {
     struct Renderable {

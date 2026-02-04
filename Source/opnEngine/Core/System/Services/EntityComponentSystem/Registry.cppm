@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <memory>
 #include <queue>
+#include <ranges>
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
@@ -11,7 +12,7 @@ export module opn.ECS.Registry;
 
 export namespace opn {
     using tEntity = uint32_t;
-    static inline constexpr tEntity NULL_ENTITY = UINT32_MAX;
+    constexpr tEntity NULL_ENTITY = UINT32_MAX;
 
     namespace detail {
         class iComponentPool {
