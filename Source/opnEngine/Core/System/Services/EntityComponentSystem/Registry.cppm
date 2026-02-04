@@ -11,7 +11,12 @@ module;
 export module opn.ECS:Registry;
 
 export namespace opn {
-    class ECS;
+    class EntityComponentSystem;
+
+    namespace systems {
+        class Systems;
+    }
+
     using tEntity = uint32_t;
     constexpr tEntity NULL_ENTITY = UINT32_MAX;
 
@@ -27,12 +32,11 @@ export namespace opn {
         class ComponentPool : public iComponentPool {
             friend class Registry;
 
-            // data
             std::unordered_map<tEntity, size_t> m_entityIndex;
             std::vector<T> m_components;
             std::vector<tEntity> m_entities;
 
-            // methods
+        public:
             void insert(tEntity _entity, T _component) {
                 if( m_entityIndex.contains(_entity)) {
                     m_components[m_entityIndex[_entity]] = std::move(_component);
@@ -65,13 +69,13 @@ export namespace opn {
 
             T* get(tEntity _entity) {
                 auto itr = m_entityIndex.find(_entity);
-                if (itr != m_entityIndex.end()) return nullptr;
+                if (itr == m_entityIndex.end()) return nullptr;
                 return &m_components[itr->second];
             }
 
             const T* get(tEntity _entity) const {
                 auto itr = m_entityIndex.find(_entity);
-                if (itr != m_entityIndex.end()) return nullptr;
+                if (itr == m_entityIndex.end()) return nullptr;
                 return &m_components[itr->second];
             }
 
@@ -86,15 +90,14 @@ export namespace opn {
         };
     }
 
-    class Registry {
-        friend class ECS;
+    class Registry final {
+        friend class EntityComponentSystem;
+        friend class systems::Systems;  // ✅ Lowercase systems
 
-        // data
         tEntity m_nextEntity{0};
         std::queue<tEntity> m_recycledEntities;
         std::unordered_map<std::type_index, std::unique_ptr<detail::iComponentPool>> m_componentPools;
 
-        // methods
         template<typename T>
         detail::ComponentPool<T>* getPool() {
             auto typeIndex = std::type_index(typeid(T));

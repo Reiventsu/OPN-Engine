@@ -1,3 +1,5 @@
+module;
+#include <cstdio>
 export module opn.Assets.Types;
 import opn.System.UUID;
 
