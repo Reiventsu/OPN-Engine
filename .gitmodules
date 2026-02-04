@@ -1,4 +1,4 @@
-[submodule "Source/opnEngine/Plugins/Third-Party/ImGui"]
-	path = Source/opnEngine/Plugins/Third-Party/ImGui
+[submodule "Source/opnEngine/Dependencies/Third-Party/ImGui"]
+	path = Source/opnEngine/Dependencies/Third-Party/ImGui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
