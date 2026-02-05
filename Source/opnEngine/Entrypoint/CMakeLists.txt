@@ -11,6 +11,7 @@ target_link_libraries(EngineServices
         CoreSystems
         Services
         Renderer
+        Application
 )
 
 add_executable(OPN_Engine main.cpp)

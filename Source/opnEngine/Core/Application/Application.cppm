@@ -1,33 +1,14 @@
 module;
 #include <string>
 
-export module opn.Application:App;
+export module opn.Application;
 
 import opn.Utils.Logging;
 
 export namespace opn {
-    /**
-     * @brief Base class for all applications built with OPN Engine
-     *
-     * Inherit from this and override lifecycle methods.
-     * The engine manages calling these at the right times.
-     *
-     * Example:
-     * @code
-     * class MyGame : public opn::Application {
-     * protected:
-     *     void onInit() override {
-     *         // Create entities, load assets
-     *     }
-     *     void onUpdate(float dt) override {
-     *         // Game logic
-     *     }
-     * };
-     * @endcode
-     */
-    class Application {
+    class iApplication {
     public:
-        virtual ~Application() = default;
+        virtual ~iApplication() = default;
 
         /**
          * @brief Get the application name
@@ -37,7 +18,7 @@ export namespace opn {
             return "OPN Application";
         }
 
-    protected:
+    public:
         /**
          * @brief Called BEFORE engine services are initialized
          */
@@ -69,17 +50,15 @@ export namespace opn {
         /**
          * @brief Called BEFORE engine shutdown begins
          */
-        virtual void onPreShutdown() {
+        virtual void onShutdown() {
             logInfo("Application", "Pre-shutdown (override onPreShutdown for custom behavior)");
         }
 
         /**
          * @brief Called AFTER engine has shut down
          */
-        virtual void onShutdown() {
+        virtual void onPostShutdown() {
             logInfo("Application", "Shutdown (override onShutdown for custom behavior)");
         }
-
-        friend class ApplicationRunner;
     };
 }

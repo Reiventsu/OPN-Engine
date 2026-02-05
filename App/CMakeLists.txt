@@ -10,10 +10,12 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Source/)
 add_library(ApplicationCode)
 
 target_sources(ApplicationCode
-PUBLIC
-FILE_SET CXX_MODULES FILES
+        PUBLIC
+        FILE_SET CXX_MODULES FILES
         App.cppm
 )
 
-add_executable(UserApp )
-
+target_link_libraries(ApplicationCode
+        PUBLIC
+        OPN_Engine
+)

@@ -6,6 +6,7 @@
 // all my homies hate the Windows terminal
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
 #define NOMINMAX
 #include <windows.h>
 
@@ -30,43 +31,43 @@ import opn.System.Services;
 import opn.System.EngineServices;
 import opn.Utils.Logging;
 import opn.Renderer.RenderPackage;
-
+import opn.Application;
 
 int main() {
     opn::logInfo("OPN Engine", "Starting engine...");
 #ifdef _WIN32
     initTerminal();
 #endif
-    try {
 
+    auto application = std::make_unique<opn::iApplication>();
+    try {
         opn::JobDispatcher::init();
         opn::EngineServiceManager::init();
+        application->onPreInit();
 
         opn::EngineServiceManager::registerServices();
+        application->onInit();
+
         opn::EngineServiceManager::postInitAll();
+        application->onPostInit();
 
         auto &time = opn::EngineServiceManager::getService<opn::Time>();
         auto &window = opn::EngineServiceManager::getService<opn::WindowSystem>();
 
-        /*
-        opn::logCritical("test","test");
-        opn::logDebug("test", "test");
-        opn::logInfo("test", "test");
-        opn::logWarning("test", "test");
-        opn::logError("test", "test");
-        */
-
         while (!window.shouldClose()) {
+            const auto dt = static_cast<float>(time.getDeltaTime());
             window.pollEvents();
 
-            const auto dt = static_cast<float>(time.getDeltaTime());
+            application->onUpdate(dt);
             opn::EngineServiceManager::updateAll(dt);
         }
 
+        application->onShutdown();
         opn::logInfo("OPN Engine", "Shutting down...");
 
         opn::EngineServiceManager::shutdown();
         opn::JobDispatcher::shutdown();
+        application->onPostShutdown();
 
         opn::logInfo("OPN Engine", "Shutdown successful.");
     } catch (const std::exception &e) {
