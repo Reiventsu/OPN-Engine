@@ -18,4 +18,7 @@ target_sources(ApplicationCode
 target_link_libraries(ApplicationCode
         PUBLIC
         OPN_Engine
+        CoreUtils
 )
+
+add_dependencies(ApplicationCode OPN_Engine)

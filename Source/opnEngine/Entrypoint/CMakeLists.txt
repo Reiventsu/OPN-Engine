@@ -16,5 +16,5 @@ target_link_libraries(EngineServices
 
 add_executable(OPN_Engine main.cpp)
 
-target_link_libraries(OPN_Engine PRIVATE EngineServices)
+target_link_libraries(OPN_Engine PUBLIC EngineServices)
 add_dependencies(OPN_Engine CompileShaders)
