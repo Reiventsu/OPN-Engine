@@ -1,6 +1,6 @@
-# JetBrains
+# IDE Specific
 .idea
+.vs
 
 # Build stuff
-Build/
-cmake-build-*
+.build/
