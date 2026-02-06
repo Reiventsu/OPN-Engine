@@ -14,7 +14,11 @@ target_link_libraries(EngineServices
         Renderer
 )
 
-add_executable(OPN_Engine main.cpp)
+add_library(EngineMain OBJECT main.cpp)
 
-target_link_libraries(OPN_Engine PUBLIC EngineServices)
-add_dependencies(OPN_Engine CompileShaders)
+target_link_libraries(EngineMain
+        PUBLIC
+        Application
+)
+
+add_library(OPN::EngineMain ALIAS EngineMain)

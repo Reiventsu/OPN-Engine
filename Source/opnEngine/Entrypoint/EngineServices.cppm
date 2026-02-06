@@ -18,12 +18,12 @@ export namespace opn {
     using EngineServiceManager = ServiceManager_Impl< EngineServices >;
 
     template<typename T>
-    inline const T& getService() {
+    const T& getService() {
         return EngineServiceManager::getService<T>();
     }
 
     template<typename T>
-    inline bool isServiceRegistered() {
+    bool isServiceRegistered() {
         return EngineServiceManager::isRegistered<T>();
     }
 }

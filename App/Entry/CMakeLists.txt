@@ -5,7 +5,7 @@ project(OPN_Application
         LANGUAGES CXX
 )
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Source/)
+add_subdirectory(../../Source)
 
 add_library(ApplicationCode)
 
@@ -13,6 +13,7 @@ target_sources(ApplicationCode
         PUBLIC
         FILE_SET CXX_MODULES FILES
         App.cppm
+        App.cpp
 )
 
 target_link_libraries(ApplicationCode

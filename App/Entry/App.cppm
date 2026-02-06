@@ -5,14 +5,17 @@ module;
 #include <string>
 
 
-export module opn.AppSpace.App;
+export module opn.UserApp;
 import opn.Application;
 import opn.Utils.Logging;
 // Use import directives between here and the class
 
 
-class MyApplication : public opn::iApplication {
+class UserApplication : public opn::iApplication {
 protected:
+    void onPreInit() override {
+    }
+
     void onInit() override {
         opn::logInfo("Application", "Hello World!");
     }
@@ -20,14 +23,11 @@ protected:
     void onPostInit() override {
     }
 
-    void onPreInit() override {
+    void onShutdown() override {
+        opn::logInfo("Application", "Goodbye World!");
     }
 
     void onPostShutdown() override {
-    }
-
-    void onShutdown() override {
-        opn::logInfo("Application", "Goodbye World!");
     }
 
     void onUpdate(float _deltaTime) override {
