@@ -8,10 +8,10 @@ target_sources(EngineServices
 
 target_link_libraries(EngineServices
         PUBLIC
+        Application
         CoreSystems
         Services
         Renderer
-        Application
 )
 
 add_executable(OPN_Engine main.cpp)

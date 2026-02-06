@@ -5,6 +5,7 @@ import opn.System.SystemTypeList;
 import opn.System.Services;
 import opn.Renderer.RenderPackage;
 import opn.ECS;
+
 export namespace opn {
     using EngineServices = SystemTypeList<
         Time,                             // Mandatory service
@@ -23,6 +24,6 @@ export namespace opn {
 
     template<typename T>
     inline bool isServiceRegistered() {
-        return EngineServiceManager::template isRegistered<T>();
+        return EngineServiceManager::isRegistered<T>();
     }
 }

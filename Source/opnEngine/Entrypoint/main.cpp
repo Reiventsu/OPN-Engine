@@ -39,7 +39,6 @@ int main() {
     initTerminal();
 #endif
 
-    auto application = std::make_unique<opn::iApplication>();
     try {
         opn::JobDispatcher::init();
         opn::EngineServiceManager::init();
