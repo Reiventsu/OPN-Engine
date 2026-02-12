@@ -2,6 +2,7 @@ module;
 // Use #include directives between here and the
 // export module as you would normally.
 
+#include <memory>
 #include <string>
 
 
@@ -11,7 +12,7 @@ import opn.Application;
 import opn.Utils.Logging;
 
 
-class UserApplication : public opn::iApplication {
+class UserApplication final : public opn::iApplication {
 protected:
     void onPreInit() override {
     }
@@ -34,7 +35,9 @@ protected:
     }
 
 public:
-    [[nodiscard]] ::std::string getName() const override {
+    [[nodiscard]] std::string getName() const override {
         return "My first OPN app!";
     }
 };
+
+

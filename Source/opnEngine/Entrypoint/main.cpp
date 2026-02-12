@@ -1,5 +1,6 @@
 import opn.Engine;
+import opn.Application;
 
 int main() {
-    return opn::runEngine;
+    return opn::detail::runEngine();
 }

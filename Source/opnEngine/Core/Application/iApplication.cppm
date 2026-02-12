@@ -27,12 +27,12 @@ export namespace opn {
         /**
          * @brief Called AFTER all services have completed postInit
          */
-        virtual void onPostInit() = 0;
+        virtual void onPostInit() {};
 
         /**
          * @brief Called every frame
          */
-        virtual void onUpdate(float _deltaTime) = 0;
+        virtual void onUpdate(float _deltaTime) {};
 
         /**
          * @brief Called BEFORE engine shutdown begins
