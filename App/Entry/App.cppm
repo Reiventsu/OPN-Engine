@@ -6,9 +6,9 @@ module;
 
 
 export module opn.UserApp;
+// Use import directives between here and the class
 import opn.Application;
 import opn.Utils.Logging;
-// Use import directives between here and the class
 
 
 class UserApplication : public opn::iApplication {
