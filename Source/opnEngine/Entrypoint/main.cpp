@@ -1,5 +1,4 @@
-import opn.Engine;
-import opn.Application;
+module opn.Engine;
 
 int main() {
     return opn::detail::runEngine();
