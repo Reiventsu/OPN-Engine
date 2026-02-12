@@ -1,4 +1,4 @@
-module opn.Engine;
+import opn.Engine;
 
 int main() {
     return opn::detail::runEngine();

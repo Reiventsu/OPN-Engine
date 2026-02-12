@@ -17,6 +17,8 @@ module;
 export module opn.Engine;
 import opn.Application;
 import opn.System.EngineServices;
+import opn.System.Service.Time;
+import opn.System.Service.WindowSystem;
 import opn.System.JobDispatcher;
 import opn.Utils.Logging;
 
