@@ -26,5 +26,5 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 add_subdirectory(Source/opnEngine)
 if (OPN_BUILD_APP)
-    add_subdirectory(App/Entry)
+    add_subdirectory(App)
 endif ()

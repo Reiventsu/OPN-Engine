@@ -65,6 +65,8 @@ export namespace opn::detail {
             auto &time = EngineServiceManager::getService<Time>();
             auto &window = EngineServiceManager::getService<WindowSystem>();
 
+
+
             while (!window.shouldClose()) {
                 const auto dt = static_cast<float>(time.getDeltaTime());
                 window.pollEvents();

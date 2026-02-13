@@ -82,7 +82,7 @@ export namespace opn {
         }
 
         static void shutdown() {
-            opn::logInfo("JobDispatcher", "Shutting down Job Dispatching service...");
+            opn::logInfo("JobDispatcher", "Shutting down Job Dispatcher...");
             if (!initialized.exchange(false)) return;
 
             for (size_t i = 0; i < static_cast<size_t>(eJobType::COUNT); ++i)

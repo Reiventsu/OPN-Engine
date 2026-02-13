@@ -2,6 +2,7 @@ module;
 #include <vulkan/vulkan.hpp>
 #include "GLFW/glfw3.h"
 
+
 export module opn.System.Service.WindowSystem;
 
 import opn.System.ServiceInterface;
@@ -13,7 +14,7 @@ namespace opn {
         GLFWwindow *m_window = nullptr;
         int m_width = 1280;
         int m_height = 720;
-        std::string m_title = "OPN Engine";
+        std::string m_title = "OPN Engine - Applicaiton";
         bool m_framebufferResized = false;
 
     public:
@@ -27,9 +28,8 @@ namespace opn {
 
         void setTitle(const std::string &_title) {
             m_title = _title;
-            if (m_window) {
-                glfwSetWindowTitle(m_window, _title.c_str());
-            }
+            if (!m_window) return;
+            glfwSetWindowTitle(m_window, _title.c_str());
         }
 
         // Getters

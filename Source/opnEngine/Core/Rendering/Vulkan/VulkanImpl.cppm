@@ -164,11 +164,11 @@ export namespace opn {
 
             m_debugMessenger = m_vkbInstance.debug_messenger;
 
-            opn::logInfo( "VulkanBackend", "Vulkan instance created successfully." );
+            opn::logDebug( "VulkanBackend", "Vulkan instance created successfully." );
         }
 
         void createAllocator() {
-            opn::logInfo( "VulkanBackend", "Creating VMA Allocator..." );
+            opn::logDebug( "VulkanBackend", "Creating VMA Allocator..." );
 
             if( !m_instance || !m_chosenDevice || !m_device ) {
                 opn::logCritical( "VulkanBackend", "VMA prerequisites not met!" );
@@ -193,7 +193,7 @@ export namespace opn {
                 "vmaCreateAllocator"
             );
 
-            opn::logInfo( "VulkanBackend", "VMA Allocator created successfully!" );
+            opn::logDebug( "VulkanBackend", "VMA Allocator created successfully!" );
         }
 
         void createDevices() {
@@ -247,7 +247,7 @@ export namespace opn {
 
             volkLoadDevice(m_device);
 
-            opn::logInfo("VulkanBackend", "Vulkan device created successfully.");
+            opn::logDebug("VulkanBackend", "Vulkan device created successfully.");
         }
 
         void createSwapchain() {
@@ -337,7 +337,7 @@ export namespace opn {
                 );
             }
 
-            logInfo("VulkanBackend", "Swapchain created: {}x{}.",
+            opn::logDebug("VulkanBackend", "Swapchain created: {}x{}.",
                     m_swapchainExtent.width, m_swapchainExtent.height);
 
             VkExtent3D drawImageExtent = { m_swapchainExtent.width, m_swapchainExtent.height, 1 };
@@ -424,7 +424,7 @@ export namespace opn {
         }
 
         void createCommands() {
-            opn::logInfo("VulkanBackend", "Creating command pools...");
+            opn::logDebug("VulkanBackend", "Creating command pools...");
             VkCommandPoolCreateInfo commandPoolInfo =
                     vkUtil::command_pool_create_info( m_graphicsQueueFamily
                                                     , VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT );
@@ -462,11 +462,11 @@ export namespace opn {
                 vkDestroyCommandPool( m_device, m_immediate.commandPool, nullptr );
             } );
 
-            opn::logInfo("VulkanBackend", "Command pools created.");
+            opn::logDebug("VulkanBackend", "Command pools created.");
         }
 
         void createSyncObjects() {
-            opn::logInfo( "VulkanBackend", "Creating sync objects..." );
+            opn::logDebug( "VulkanBackend", "Creating sync objects..." );
 
             VkFenceCreateInfo     fenceCreateInfo     = vkUtil::fence_create_info( VK_FENCE_CREATE_SIGNALED_BIT );
             VkSemaphoreCreateInfo semaphoreCreateInfo = vkUtil::semaphore_create_info();
@@ -492,12 +492,12 @@ export namespace opn {
                 vkDestroyFence( m_device, m_immediate.fence, nullptr );
             } );
 
-            opn::logInfo("VulkanBackend", "Sync objects created for {} frames.",
+            opn::logDebug("VulkanBackend", "Sync objects created for {} frames.",
                  FRAME_OVERLAP );
         }
 
         void createDescriptors() {
-            opn::logInfo("VulkanBackend", "Creating descriptor objects...");
+            opn::logDebug("VulkanBackend", "Creating descriptor objects...");
 
             std::vector< vkUtil::sDescriptorAllocator::sPoolSizeRatio > sizes = {
                 { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.0f }
@@ -590,7 +590,7 @@ export namespace opn {
         }
 
         void createBackgroundPipelines() {
-            opn::logInfo("VulkanBackend", "Creating background pipelines...");
+            opn::logDebug("VulkanBackend", "Creating background pipelines...");
 
             VkPipelineLayoutCreateInfo computeLayout{ };
             computeLayout.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -713,7 +713,7 @@ export namespace opn {
         }
 
         void createTrianglePipeleine() {
-            opn::logInfo("VulkanBackend", "Creating triangle pipeline...");
+            opn::logDebug("VulkanBackend", "Creating triangle pipeline...");
 
             VkShaderModule triangleFragShader;
             auto triangleFragShaderResult
@@ -827,7 +827,7 @@ export namespace opn {
         }
 
         void createImGui() {
-            opn::logInfo("VulkanBackend", "Creating ImGui objects...");
+            opn::logDebug("VulkanBackend", "Creating ImGui objects...");
             VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
                                                   { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
                                                   { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
@@ -891,7 +891,7 @@ export namespace opn {
                 ImGui_ImplVulkan_Shutdown();
                 vkDestroyDescriptorPool( m_device, imguiPool, nullptr );
             });
-            opn::logInfo("VulkanBackend", "ImGui objects created.");
+            opn::logDebug("VulkanBackend", "ImGui objects created.");
         }
 
         void destroySwapchain() {
@@ -984,19 +984,19 @@ export namespace opn {
         void init() override {
             if (m_isInitialized.exchange(true))
                 throw MultipleInit_Exception("VulkanBackend: Multiple init calls on graphics backend!");
-            opn::logInfo("VulkanBackend", "Initializing...");
+            opn::logDebug("VulkanBackend", "Initializing...");
             createInstance();
         }
 
         void completeInit() {
-            opn::logInfo("VulkanBackend", "Completing initialization...");
+            opn::logDebug("VulkanBackend", "Completing initialization...");
 
             createDevices();
             createAllocator();
             createDescriptors();
             createSwapchain();
 
-            opn::logInfo("VulkanBackend", "Creating queues...");
+            opn::logDebug("VulkanBackend", "Creating queues...");
             m_graphicsQueue = m_vkbDevice.get_queue(vkb::QueueType::graphics).value();
             m_graphicsQueueFamily = m_vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
@@ -1007,11 +1007,11 @@ export namespace opn {
             createPipelines();
             createImGui();
 
-            opn::logInfo("VulkanBackend", "Initialization complete.");
+            opn::logDebug("VulkanBackend", "Initialization complete.");
         }
 
         void shutdown() override {
-            logInfo("VulkanBackend", "Shutting down...");
+            logDebug("VulkanBackend", "Shutting down...");
             if (m_isInitialized.exchange(false)) {
                 vkDeviceWaitIdle(m_device);
 
@@ -1069,7 +1069,7 @@ export namespace opn {
             } else {
                 logWarning("VulkanBackend", "Shutdown called, but backend was not initialized. Ignoring.");
             }
-            opn::logInfo("VulkanBackend", "Shutdown complete.");
+            opn::logDebug("VulkanBackend", "Shutdown complete.");
         }
 
         void update( float _deltaTime ) override {
@@ -1425,7 +1425,7 @@ export namespace opn {
         }
 
         void bindToWindow( WindowSurfaceProvider &_windowProvider ) override {
-            opn::logInfo( "VulkanBackend", "Binding to window..." );
+            opn::logDebug( "VulkanBackend", "Binding to window..." );
 
             m_windowHandle = &_windowProvider;
             m_surface = _windowProvider.createSurface( m_instance );
