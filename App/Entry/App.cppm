@@ -1,10 +1,7 @@
 module;
 // Use #include directives between here and the
 // export module as you would normally.
-
-#include <memory>
 #include <string>
-
 
 export module opn.UserApp;
 // Use import directives between here and the class

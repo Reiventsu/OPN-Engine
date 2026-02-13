@@ -54,3 +54,4 @@ target_link_libraries(Renderer
         CoreSystems
 )
 
+add_dependencies(Renderer CompileShaders)
