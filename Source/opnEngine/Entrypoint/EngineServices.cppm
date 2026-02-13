@@ -4,7 +4,6 @@ import opn.System.ServiceManager;
 import opn.System.SystemTypeList;
 import opn.System.Services;
 import opn.Renderer.RenderPackage;
-import opn.ECS;
 
 export namespace opn {
     using EngineServices = SystemTypeList<

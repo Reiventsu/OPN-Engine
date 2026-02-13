@@ -9,6 +9,7 @@ module;
 #include <vector>
 
 export module opn.ECS:Registry;
+import :tEntity;
 
 export namespace opn {
     class EntityComponentSystem;
@@ -17,129 +18,151 @@ export namespace opn {
         class Systems;
     }
 
-    using tEntity = uint32_t;
-    constexpr tEntity NULL_ENTITY = UINT32_MAX;
-
     namespace detail {
         class iComponentPool {
         public:
             virtual ~iComponentPool() = default;
+
             virtual void remove(tEntity _entity) = 0;
+
             [[nodiscard]] virtual bool has(tEntity _entity) const = 0;
         };
 
-        template <typename T>
+        template<typename T>
         class ComponentPool : public iComponentPool {
             friend class Registry;
 
-            std::unordered_map<tEntity, size_t> m_entityIndex;
+            std::vector<uint32_t> m_sparse;
             std::vector<T> m_components;
             std::vector<tEntity> m_entities;
 
         public:
             void insert(tEntity _entity, T _component) {
-                if( m_entityIndex.contains(_entity)) {
-                    m_components[m_entityIndex[_entity]] = std::move(_component);
+                uint32_t id = _entity.index();
+
+                if (id >= m_sparse.size()) m_sparse.resize(id + 1, 0xFFFFFFFF);
+
+                if (m_sparse[id] != 0xFFFFFFFF) {
+                    m_components[m_sparse[id]] = std::move(_component);
                     return;
                 }
 
-                size_t index = m_components.size();
-                m_components.push_back(std::move(_component));
+                m_sparse[id] = static_cast<uint32_t>(m_entities.size());
                 m_entities.push_back(_entity);
-                m_entityIndex[_entity] = index;
+                m_components.push_back(std::move(_component));
             }
 
             void remove(tEntity _entity) override {
-                auto itr = m_entityIndex.find(_entity);
-                if (itr == m_entityIndex.end()) return;
+                uint32_t id = _entity.index();
+                if (id >= m_sparse.size() || m_sparse[id] == 0xFFFFFFF) return;
 
-                size_t index = itr->second;
-                size_t lastIndex = m_entities.size() - 1;
+                uint32_t indexToRemove = m_sparse[id];
+                uint32_t lastIndex = static_cast<uint32_t>(m_entities.size() - 1);
+                tEntity lastEntity = m_entities[lastIndex];
 
-                if (index != lastIndex) {
-                    m_components[index] = std::move(m_components[lastIndex]);
-                    m_entities[index] = m_entities[lastIndex];
-                    m_entityIndex[m_entities[index]] = index;
+                if (indexToRemove != lastIndex) {
+                    m_components[indexToRemove] = std::move(m_components[lastIndex]);
+                    m_entities[indexToRemove] = m_entities[lastIndex];
+
+                    m_sparse[lastEntity.index()] = indexToRemove;
                 }
 
                 m_components.pop_back();
                 m_entities.pop_back();
-                m_entityIndex.erase(itr);
+                m_sparse[id] = 0xFFFFFFFF;
             }
 
-            T* get(tEntity _entity) {
-                auto itr = m_entityIndex.find(_entity);
-                if (itr == m_entityIndex.end()) return nullptr;
-                return &m_components[itr->second];
+            T *get(const tEntity _entity) {
+                const uint32_t id = _entity.index();
+                if (id >= m_sparse.size() || m_sparse[id] == 0xFFFFFFFF) return nullptr;
+                return &m_components[m_sparse[id]];
             }
 
-            const T* get(tEntity _entity) const {
-                auto itr = m_entityIndex.find(_entity);
-                if (itr == m_entityIndex.end()) return nullptr;
-                return &m_components[itr->second];
+            const T *get(const tEntity _entity) const {
+                const uint32_t id = _entity.index();
+                if (id >= m_sparse.size() || m_sparse[id] == 0xFFFFFFFF) return nullptr;
+                return &m_components[m_sparse[id]];
             }
 
-            bool has(tEntity _entity) const override {
-                return m_entityIndex.contains(_entity);
+            [[nodiscard]] bool has(tEntity _entity) const override {
+                const uint32_t id = _entity.index();
+                return id < m_sparse.size() && m_sparse[id] != 0xFFFFFFFF;
             }
 
-            auto& components() {return m_components;}
-            auto& entities() {return m_entities;}
-            const auto& components() const {return m_components;}
-            const auto& entities() const {return m_entities;}
+            auto &components() { return m_components; }
+            auto &entities() { return m_entities; }
+            const auto &components() const { return m_components; }
+            const auto &entities() const { return m_entities; }
         };
     }
 
     class Registry final {
         friend class EntityComponentSystem;
-        friend class systems::Systems;  // ✅ Lowercase systems
+        friend class systems::Systems;
+        friend class EntityCommandBuffer;
+        friend struct sECSCommand;
 
-        tEntity m_nextEntity{0};
-        std::queue<tEntity> m_recycledEntities;
-        std::unordered_map<std::type_index, std::unique_ptr<detail::iComponentPool>> m_componentPools;
+        std::vector<uint32_t> m_generations;
+        mutable std::atomic<uint32_t> m_indexCounter{0};
+
+        std::unordered_map<std::type_index, std::unique_ptr<detail::iComponentPool> > m_componentPools;
 
         template<typename T>
-        detail::ComponentPool<T>* getPool() {
+        detail::ComponentPool<T> *getPool() {
             auto typeIndex = std::type_index(typeid(T));
 
             if (!m_componentPools.contains(typeIndex)) {
-                m_componentPools[typeIndex] = std::make_unique<detail::ComponentPool<T>>();
+                m_componentPools[typeIndex] = std::make_unique<detail::ComponentPool<T> >();
             }
-            return static_cast<detail::ComponentPool<T>*>(m_componentPools[typeIndex].get());
+            return static_cast<detail::ComponentPool<T> *>(m_componentPools[typeIndex].get());
         }
 
-        tEntity create() {
-            if (!m_recycledEntities.empty()) {
-                tEntity entity = m_recycledEntities.front();
-                m_recycledEntities.pop();
-                return entity;
-            }
-            return m_nextEntity++;
+        [[nodiscard]] bool isValid(const tEntity _entity) const noexcept {
+            const uint32_t idx = _entity.index();
+
+            if (idx >= m_generations.size()) return false;
+            return m_generations[idx] == _entity.generation();
         }
 
-        void destroy(tEntity _entity) {
-            for (auto &pool: m_componentPools | std::views::values) {
+        tEntity create() const {
+            const uint32_t idx = m_indexCounter.fetch_add(1, std::memory_order_relaxed);
+            return tEntity::make(idx, 1);
+        }
+
+        void internal_registerCreate(tEntity _entity) {
+            const uint32_t idx = _entity.index();
+            if (idx >= m_generations.size())
+                m_generations.resize(idx + 1024, 0);
+        }
+
+        void internalDestroy(tEntity _entity) {
+            if (!isValid(_entity)) return;
+
+            const uint32_t idx = _entity.index();
+            if (m_generations[idx] != _entity.generation()) return;
+            for (const auto &pool: m_componentPools | std::views::values) {
                 pool->remove(_entity);
             }
-            m_recycledEntities.push(_entity);
+
+            m_generations[idx]++;
         }
 
         template<typename T>
-        T& addComponent(tEntity _entity, T _component) {
-            auto* pool = getPool<T>();
+        T &addComponent(tEntity _entity, T _component) {
+            auto *pool = getPool<T>();
             pool->insert(_entity, std::move(_component));
             return *pool->get(_entity);
         }
 
         template<typename T>
         void removeComponent(tEntity _entity) {
-            auto* pool = getPool<T>();
+            auto *pool = getPool<T>();
             pool->remove(_entity);
         }
 
         template<typename T>
-        T* getComponent(tEntity _entity) {
-            auto* pool = getPool<T>();
+        T *getComponent(tEntity _entity) {
+            auto *pool = getPool<T>();
             return pool->get(_entity);
         }
 
@@ -151,10 +174,10 @@ export namespace opn {
         }
 
         template<typename T, typename Func>
-        void forEach(Func&& _func) {
-            auto* pool = getPool<T>();
-            auto& components = pool->components();
-            auto& entities = pool->entities();
+        void forEach(Func &&_func) {
+            auto *pool = getPool<T>();
+            auto &components = pool->components();
+            auto &entities = pool->entities();
 
             for (size_t i = 0; i < components.size(); ++i) {
                 _func(entities[i], components[i]);
@@ -162,16 +185,16 @@ export namespace opn {
         }
 
         template<typename T1, typename T2, typename Func>
-        void forEach(Func&& _func) {
-            auto* pool1 = getPool<T1>();
-            auto* pool2 = getPool<T2>();
+        void forEach(Func &&_func) {
+            auto *pool1 = getPool<T1>();
+            auto *pool2 = getPool<T2>();
 
-            auto& entities1 = pool1->entities();
-            auto& components1 = pool1->components();
+            auto &entities1 = pool1->entities();
+            auto &components1 = pool1->components();
 
             for (size_t i = 0; i < entities1.size(); ++i) {
                 tEntity entity = entities1[i];
-                if (auto* comp2 = pool2->get(entity)) {
+                if (auto *comp2 = pool2->get(entity)) {
                     _func(entity, components1[i], *comp2);
                 }
             }

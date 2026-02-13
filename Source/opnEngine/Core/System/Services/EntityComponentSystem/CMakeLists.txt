@@ -6,6 +6,8 @@ target_sources(EntityComponentSystem
         Registry.cppm
         Service.cppm
         Systems.cppm
+        tEntity.cppm
+        ECB.cppm
         ECS.cppm
 )
 

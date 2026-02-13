@@ -4,7 +4,8 @@ export module opn.ECS:Service;
 
 import opn.System.ServiceInterface;
 import :Registry;
-import :Systems;  // ✅ Import Systems
+import :Systems;
+import :ECB;
 import opn.ECS.Components;
 import opn.Utils.Logging;
 import opn.System.JobDispatcher;
@@ -14,7 +15,9 @@ export namespace opn {
         // Data
         Registry m_registry;
         systems::Systems m_systems{m_registry};
-        std::vector<tEntity> m_allEntities;
+
+        mutable std::vector<tEntity> m_allEntities;
+        mutable EntityCommandBuffer m_ecb;
 
     protected:
         void onInit() override {
@@ -24,8 +27,7 @@ export namespace opn {
         void onShutdown() override {
             logInfo("ECS", "Shutting down ECS...");
 
-            for (const auto entity : m_allEntities) {
-                m_registry.destroy(entity);
+            for (const auto entity: m_allEntities) {
             }
             m_allEntities.clear();
 
@@ -37,30 +39,25 @@ export namespace opn {
         }
 
         void onUpdate(const float _deltaTime) override {
-            m_systems.rotateAll(_deltaTime);
+            m_ecb.playback(m_registry);
 
+            m_systems.rotateAll(_deltaTime);
         }
 
     public:
-
-        tEntity createEntity() {
-            tEntity e = m_registry.create();
-            m_allEntities.push_back(e);
-            logTrace("ECS", "Created entity: {}", e);
-            return e;
+        tEntity createEntity() const {
+            const tEntity entity = m_registry.create();
+            m_ecb.enqueue(sECSCommand::Create(entity, m_allEntities));
+            return entity;
         }
 
         void destroyEntity(const tEntity _entity) {
-            logTrace("ECS", "Destroying entity: {}", _entity);
-            m_registry.destroy(_entity);
-
-            // Remove from tracking
-            std::erase(m_allEntities, _entity);
+            m_ecb.enqueue(sECSCommand::Destroy(_entity, m_allEntities));
         }
 
         template<typename T>
-        T& addComponent(tEntity _entity, T _component) {
-            return m_registry.addComponent(_entity, std::move(_component));
+        void addComponent(tEntity _entity, T _component) const {
+            m_ecb.enqueue(sECSCommand::AddComponent(_entity, std::move(_component)));
         }
 
         template<typename T>
@@ -69,7 +66,7 @@ export namespace opn {
         }
 
         template<typename T>
-        T* getComponent(tEntity _entity) {
+        T *getComponent(tEntity _entity) {
             return m_registry.getComponent<T>(_entity);
         }
 

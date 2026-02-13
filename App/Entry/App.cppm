@@ -2,12 +2,14 @@ module;
 // Use #include directives between here and the
 // export module as you would normally.
 #include <string>
+#include <vector_float_type.h>
 
-export module opn.UserApp;
+export module opn.UserApp; // Mandatory
+import opn.Application;    // Mandatory
+import opn.Utils.Logging;  // Optional
 // Use import directives between here and the class
-import opn.Application;
-import opn.Utils.Logging;
-
+import opn.ECS;
+import opn.ECS.Components;
 
 export class UserApplication final : public opn::iApplication {
 protected:
@@ -19,6 +21,33 @@ protected:
     }
 
     void onPostInit() override {
+
+        using namespace opn;
+
+        // 1. Get the ECS safely via the Manager
+        EngineServiceManager::useService<EntityComponentSystem>([](const auto& _ecs) {
+            // 2. Dispatch the spawning job to a worker thread
+            Dispatch::execute([&_ecs]() {
+                logInfo("App", "Starting mass entity spawn...");
+
+                // Spawn 1000 entities with transforms
+                for (int i = 0; i < 1000; ++i) {
+                    // Get an immediate handle (Atomic)
+                    auto e = _ecs.createEntity();
+
+                    // Queue component additions (Deferred to Playback)
+                    _ecs.addComponent(e, components::Transform{
+                        .position = { i, 0.0f, 0.0f},
+                        .rotation = {},
+                        .scale = {}
+                    });
+                }
+
+                logInfo("App", "Successfully queued 1000 entities!");
+            });
+
+        });
+
     }
 
     void onShutdown() override {

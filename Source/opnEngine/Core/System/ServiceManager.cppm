@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <atomic>
+#include <expected>
 #include <memory>
 #include <ranges>
 #include <source_location>
@@ -18,6 +19,35 @@ import opn.Utils.Exceptions;
 export namespace opn {
     template<typename ServiceList>
     class ServiceManager_Impl {
+        enum class ServiceState {
+            Unregistered,
+            Registered,
+            Initializing,
+            Ready,
+            ShuttingDown
+        };
+
+        enum class ServiceError {
+            // The service wasn't found in the internal map
+            NotRegistered,
+
+            // The service exists but init() or postInit() hasn't finished
+            NotInitialized,
+
+            // The service is currently being destroyed or the manager is closing
+            ShuttingDown,
+
+            // A required dependency (another service) is missing or failed
+            DependencyMissing,
+
+            // The system is present, but the current hardware doesn't support it
+            // (e.g., trying to run a RaytracingService on an old GPU)
+            HardwareUnsupported,
+
+            // A catch-all for unexpected logic failures
+            Unknown
+        };
+
         struct iServiceHolder {
             virtual ~iServiceHolder() = default;
 
@@ -26,11 +56,14 @@ export namespace opn {
             virtual void update(float _deltaTime) = 0;
 
             virtual void postInit() = 0;
+
+            ServiceState state = ServiceState::Unregistered;
         };
 
         template<IsService T>
         struct ServiceHolder : iServiceHolder {
             std::unique_ptr<T> service;
+
 
             explicit ServiceHolder() {
                 opn::logTrace("ServiceManager", "Constructing service holder...");
@@ -50,8 +83,7 @@ export namespace opn {
                 if (service) {
                     opn::logTrace("ServiceManager", "Shutting down service holder...");
                     service->shutdown();
-                }
-                else opn::logWarning("ServiceManager", "Service holder already shutdown or was never started.");
+                } else opn::logWarning("ServiceManager", "Service holder already shutdown or was never started.");
             }
 
             void update(float _deltaTime) override {
@@ -118,6 +150,7 @@ export namespace opn {
                 auto itr = services.find(typeIndex);
                 if (itr != services.end()) {
                     itr->second->postInit();
+                    itr->second->state = ServiceState::Ready;
                 }
             }
 
@@ -139,6 +172,7 @@ export namespace opn {
             }
 
             auto holder = std::make_unique<ServiceHolder<T> >();
+            holder->state = ServiceState::Registered;
             holder->init();
 
             T &serviceRef = holder->get();
@@ -188,16 +222,26 @@ export namespace opn {
         }
 
         template<IsService T>
-        [[nodiscard]] static std::optional<std::reference_wrapper<const T> > tryGetService() noexcept {
-            if (!isRegistered<T>()) {
-                return std::nullopt;
+        [[nodiscard]] static std::expected<std::reference_wrapper<const T>, ServiceError> tryGetService() noexcept {
+            const auto typeIdx = std::type_index(typeid(T));
+            auto itr = services.find(typeIdx);
+
+            if (itr == services.end()) {
+                return std::unexpected(ServiceError::NotRegistered);
             }
 
-            try {
-                return std::ref(getService<T>());
-            } catch (...) {
-                return std::nullopt;
+            const auto &holder = itr->second;
+
+            if (holder->state == ServiceState::ShuttingDown) {
+                return std::unexpected(ServiceError::ShuttingDown);
             }
+
+            if (holder->state != ServiceState::Ready) {
+                return std::unexpected(ServiceError::NotInitialized);
+            }
+
+            auto *concreteHolder = static_cast<ServiceHolder<T> *>(holder.get());
+            return std::ref(concreteHolder->get());
         }
 
         static void registerServices() {
@@ -212,6 +256,52 @@ export namespace opn {
             });
 
             opn::logInfo("ServiceManager", "{} services registered successfully.", services.size());
+        }
+
+        template<IsService T, typename Func>
+        static void useService(Func &&func) noexcept {
+
+            if (auto result = tryGetService<T>(); result.has_value()) {
+                // Success: Execute the user logic with the const service reference
+                func(result->get());
+            } else {
+                const ServiceError err = result.error();
+                std::string_view typeName = typeid(T).name();
+
+                switch (err) {
+                    case ServiceError::NotRegistered:
+                        logError("ServiceManager",
+                                 "Access failed: Service [{}] was never registered in the ServiceList.", typeName);
+                        break;
+
+                    case ServiceError::NotInitialized:
+                        logError("ServiceManager",
+                                 "Access failed: Service [{}] is registered but not yet 'Ready' (check init/postInit order).",
+                                 typeName);
+                        break;
+
+                    case ServiceError::ShuttingDown:
+                        logError("ServiceManager", "Access denied: Service [{}] is currently shutting down.", typeName);
+                        break;
+
+                    case ServiceError::DependencyMissing:
+                        logError("ServiceManager", "Access failed: Service [{}] has missing or failed dependencies.",
+                                 typeName);
+                        break;
+
+                    case ServiceError::HardwareUnsupported:
+                        logCritical("ServiceManager",
+                                    "Access failed: Hardware does not support requirements for Service [{}].",
+                                    typeName);
+                        break;
+
+                    case ServiceError::Unknown:
+                    default:
+                        logError("ServiceManager",
+                                 "Access failed: Service [{}] encountered an unhandled or unknown error.", typeName);
+                        break;
+                }
+            }
         }
 
     private:

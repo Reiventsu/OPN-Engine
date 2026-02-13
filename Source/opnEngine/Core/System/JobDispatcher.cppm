@@ -23,7 +23,6 @@ export namespace opn {
         General,
         Asset,
         Audio,
-        Render,
         COUNT
     };
 
@@ -126,7 +125,6 @@ export namespace opn {
                 case eJobType::General: return s_generalQueue;
                 case eJobType::Asset: return s_assetQueue;
                 case eJobType::Audio: return s_audioQueue;
-                case eJobType::Render: return s_renderQueue;
                 default: return s_generalQueue;
             }
         }
@@ -155,8 +153,6 @@ export namespace opn {
                 case eJobType::Asset: success = s_assetQueue << std::move(_task);
                     break;
                 case eJobType::Audio: success = s_audioQueue << std::move(_task);
-                    break;
-                case eJobType::Render: success = s_renderQueue << std::move(_task);
                     break;
                 default: break;
             }
@@ -220,5 +216,29 @@ export namespace opn {
             }
         }
         return {myFence};
+    }
+}
+
+export namespace opn::Dispatch {
+
+    // Execute a general command
+    template<typename Command>
+    sJobHandle execute(Command&&_command) {
+        return JobDispatcher::submit(eJobType::General, std::forward<Command>(_command));
+    }
+
+    // Send a job to a specific queue
+    template<typename Command>
+    sJobHandle job(eJobType _type, Command &&_command) {
+        return JobDispatcher::submit(_type, std::forward<Command>(_command));
+    }
+
+    template<typename Command>
+    sJobHandle after(const sJobHandle& _dependency, eJobType _type, Command &&_command) {
+        return JobDispatcher::submitAfter(_dependency.fenceID, _type, std::forward<Command>(_command));
+    }
+
+    void waitFor(const sJobHandle& _handle) {
+        _handle.wait();
     }
 }
