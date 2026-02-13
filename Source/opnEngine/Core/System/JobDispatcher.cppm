@@ -31,11 +31,12 @@ export namespace opn {
         uint32_t fenceID = 0;
 
         sTask() = default;
-        sTask(sTask&& other) noexcept :
-            execute(std::move(other.execute)),
-            fenceID(other.fenceID) {}
 
-        sTask& operator=(sTask&& other) noexcept {
+        sTask(sTask &&other) noexcept : execute(std::move(other.execute)),
+                                        fenceID(other.fenceID) {
+        }
+
+        sTask &operator=(sTask &&other) noexcept {
             execute = std::move(other.execute);
             fenceID = other.fenceID;
             return *this;
@@ -66,10 +67,10 @@ export namespace opn {
         inline static MPSCQueue<sTask, QUEUE_SIZE> s_generalQueue;
         inline static MPSCQueue<sTask, QUEUE_SIZE> s_assetQueue;
         inline static MPSCQueue<sTask, QUEUE_SIZE> s_audioQueue;
-        inline static MPSCQueue<sTask, QUEUE_SIZE> s_renderQueue;
 
         inline static std::atomic<uint32_t> s_nextFenceID{0};
         inline static std::array<std::atomic<int32_t>, MAX_FENCES> s_fencePool{};
+        inline static std::vector<std::jthread> s_workers;
 
     public:
         static void init(const std::source_location loc = std::source_location::current()) {
@@ -78,6 +79,22 @@ export namespace opn {
 
             for (auto &f: s_fencePool) f.store(0, std::memory_order_release);
             opn::logInfo("JobDispatcher", "Job Dispatcher initialized successfully.");
+
+            uint32_t threadCount = std::thread::hardware_concurrency() - 1; // Save one for Main
+            for (uint32_t i = 0; i < threadCount; ++i) {
+                s_workers.emplace_back([]() {
+                    uint32_t lastSeenSignal = 0;
+                    while (initialized.load(std::memory_order_acquire)) {
+                        waitForWork(eJobType::General, lastSeenSignal);
+
+                        sTask task;
+                        while (getQueue(eJobType::General) >> task) {
+                            task.execute();
+                            signalCompletion(task.fenceID);
+                        }
+                    }
+                });
+            }
         }
 
         static void shutdown() {
@@ -131,9 +148,7 @@ export namespace opn {
 
         static void signalCompletion(const uint32_t _fenceID) noexcept {
             s_fencePool[_fenceID % MAX_FENCES].store(0, std::memory_order_release);
-            s_fencePool[_fenceID % MAX_FENCES].notify_all();
-
-            {
+            s_fencePool[_fenceID % MAX_FENCES].notify_all(); {
                 std::lock_guard lock(s_dependencyMutex);
                 if (const auto itr = s_dependencies.find(_fenceID); itr != s_dependencies.end()) {
                     for (auto &[type, task]: itr->second) {
@@ -192,8 +207,10 @@ export namespace opn {
         newTask.fenceID = fenceID;
 
         using CmdType = std::decay_t<Command>;
-        newTask.execute = [cmd = CmdType(std::forward<Command>(_command))]() mutable { cmd(); };
-
+        newTask.execute = [cmd = CmdType(std::forward<Command>(_command)), fenceID]() mutable {
+            cmd();
+            signalCompletion(fenceID);
+        };
 
         dispatchInternal(_type, std::move(newTask));
         return {fenceID};
@@ -202,28 +219,37 @@ export namespace opn {
     template<typename Command>
     sJobHandle JobDispatcher::submitAfter(uint32_t _dependencyFence, const eJobType _type, Command &&_command) {
         const uint32_t myFence = s_nextFenceID.fetch_add(1, std::memory_order_relaxed);
+
         s_fencePool[myFence % MAX_FENCES].store(1, std::memory_order_release);
 
         sTask newTask;
         newTask.fenceID = myFence;
+
         using CmdType = std::decay_t<Command>;
-        newTask.execute = [cmd = CmdType(std::forward<Command>(_command))]() mutable { cmd(); }; {
+
+        newTask.execute = [cmd = CmdType(std::forward<Command>(_command)), myFence]() mutable {
+            cmd();
+            signalCompletion(myFence);
+        }; {
             std::lock_guard lock(s_dependencyMutex);
+
             if (isFenceSignaled(_dependencyFence)) {
+                // Dependency is already done, fire immediately
                 dispatchInternal(_type, std::move(newTask));
             } else {
+                // Dependency is still busy, stash it in the dependency map
                 s_dependencies[_dependencyFence].push_back({_type, std::move(newTask)});
             }
         }
+
         return {myFence};
     }
 }
 
 export namespace opn::Dispatch {
-
     // Execute a general command
     template<typename Command>
-    sJobHandle execute(Command&&_command) {
+    sJobHandle execute(Command &&_command) {
         return JobDispatcher::submit(eJobType::General, std::forward<Command>(_command));
     }
 
@@ -234,11 +260,11 @@ export namespace opn::Dispatch {
     }
 
     template<typename Command>
-    sJobHandle after(const sJobHandle& _dependency, eJobType _type, Command &&_command) {
+    sJobHandle after(const sJobHandle &_dependency, eJobType _type, Command &&_command) {
         return JobDispatcher::submitAfter(_dependency.fenceID, _type, std::forward<Command>(_command));
     }
 
-    void waitFor(const sJobHandle& _handle) {
+    void waitFor(const sJobHandle &_handle) {
         _handle.wait();
     }
 }
