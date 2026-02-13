@@ -12,7 +12,7 @@ import opn.Application;
 import opn.Utils.Logging;
 
 
-class UserApplication final : public opn::iApplication {
+export class UserApplication final : public opn::iApplication {
 protected:
     void onPreInit() override {
     }
@@ -39,5 +39,3 @@ public:
         return "My first OPN app!";
     }
 };
-
-

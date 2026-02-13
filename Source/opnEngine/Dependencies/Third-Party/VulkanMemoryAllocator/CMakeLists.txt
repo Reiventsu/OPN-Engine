@@ -2,4 +2,4 @@ add_library(VulkanMemoryAllocator INTERFACE)
 
 TARGET_INCLUDE_DIRECTORIES(VulkanMemoryAllocator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(VulkanMemoryAllocator INTERFACE Vulkan::Vulkan)
+target_link_libraries(VulkanMemoryAllocator INTERFACE Vulkan::Headers)

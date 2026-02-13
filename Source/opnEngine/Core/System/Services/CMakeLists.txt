@@ -8,7 +8,6 @@ target_sources(WindowingInterface
 
 target_link_libraries(WindowingInterface
         PUBLIC
-        Vulkan::Vulkan
         glfw
 )
 

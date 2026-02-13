@@ -12,5 +12,5 @@ target_link_libraries(ApplicationCode
         OPN::Engine
 )
 
-add_executable(OPN_App App.cpp)
+add_executable(OPN_App)
 target_link_libraries(OPN_App PRIVATE ApplicationCode OPN::EngineMain)

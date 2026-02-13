@@ -1,6 +1,9 @@
-module opn.UserApp;
+module;
 #include <memory>
+module opn.UserApp;
 
-auto linkApplication() -> std::unique_ptr<opn::iApplication> {
-    return std::make_unique<UserApplication>();
+extern "C++" namespace opn {
+    std::unique_ptr<iApplication> linkApplication() {
+        return std::make_unique<UserApplication>();
+    }
 }

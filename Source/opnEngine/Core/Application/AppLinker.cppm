@@ -3,6 +3,6 @@ module;
 export module opn.Application:AppLink;
 import :iApp;
 
-export namespace opn {
+export extern "C++" namespace opn {
     std::unique_ptr<iApplication> linkApplication();
 }

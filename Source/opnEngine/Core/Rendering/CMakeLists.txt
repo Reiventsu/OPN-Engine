@@ -24,7 +24,7 @@ target_sources(RenderHelpers
 target_link_libraries(RenderHelpers
         PUBLIC
         CoreUtils
-        Vulkan::Vulkan
+        Vulkan::Headers
         VulkanMemoryAllocator
         glfw
         vk-bootstrap
@@ -35,18 +35,14 @@ target_link_libraries(RenderHelpers
 
 add_library(Renderer)
 
+target_sources(Renderer PRIVATE Vulkan/VMA_VOLK_IMPLEMENTATION.cpp)
+
 target_sources(Renderer
         PUBLIC
         FILE_SET CXX_MODULES FILES
         RenderPackage.cppm
         Vulkan/VulkanImpl.cppm
         DirectX/DirectXImpl.cppm
-)
-
-target_sources(Renderer
-        PUBLIC
-        Vulkan/VolkImplementation.cpp
-        Vulkan/VMAImplementation.cpp
 )
 
 target_link_libraries(Renderer

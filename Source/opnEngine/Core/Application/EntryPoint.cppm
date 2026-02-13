@@ -47,7 +47,7 @@ export namespace opn::detail {
         initTerminal();
 #endif
 
-        const auto &application = linkApplication();
+        const auto &application = opn::linkApplication();
 
         try {
             application->onPreInit();
