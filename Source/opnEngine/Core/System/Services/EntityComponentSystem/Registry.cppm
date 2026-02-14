@@ -1,5 +1,6 @@
 module;
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <queue>

@@ -13,4 +13,10 @@ target_link_libraries(ApplicationCode
 )
 
 add_executable(OPN_App)
-target_link_libraries(OPN_App PRIVATE ApplicationCode OPN::EngineMain)
+# Needed to do this to make linker see the symbols
+target_link_libraries(OPN_App PRIVATE
+    OPN::EngineMain
+    -Wl,--whole-archive
+    ApplicationCode
+    -Wl,--no-whole-archive
+)
