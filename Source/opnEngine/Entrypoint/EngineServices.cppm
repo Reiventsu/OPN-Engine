@@ -10,6 +10,7 @@ export namespace opn {
         Time,                             // Mandatory service
         WindowSystem,                     // Mandatory service
         Rendering< VulkanImpl >,
+        ShaderCompiler,
         AssetSystem,
         EntityComponentSystem
     >;

@@ -18,6 +18,7 @@ target_sources(Services
         FILE_SET CXX_MODULES FILES
         Time.cppm
         WindowSystem.cppm
+        ShaderReflection.cppm
         Rendering.cppm
         AssetService/AssetSystem.cppm
         SystemsPackage.cppm
@@ -35,4 +36,5 @@ target_link_libraries(Services
         glfw
         RenderHelpers
         imgui
+        slang::slang
 )
