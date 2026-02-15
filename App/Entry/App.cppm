@@ -45,9 +45,7 @@ protected:
 
                 logInfo("App", "Successfully queued 1000 entities!");
             });
-
         });
-
     }
 
     void onShutdown() override {

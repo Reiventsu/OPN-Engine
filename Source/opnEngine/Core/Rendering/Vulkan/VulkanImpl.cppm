@@ -42,6 +42,7 @@ export namespace opn {
         VkDevice                 m_device               = nullptr;
         VkSurfaceKHR             m_surface              = nullptr;
         VkSwapchainKHR           m_swapchain            = nullptr;
+
         VkFormat                 m_swapchainImageFormat{ };
         std::vector<VkImage>     m_swapchainImages;
         std::vector<VkImageView> m_swapchainImageViews;
@@ -52,17 +53,17 @@ export namespace opn {
         vkb::DispatchTable m_dispatchTable;
 
         struct sDeletionQueue {
-            std::deque<std::function<void()>> deletors;
+            std::deque<std::function<void()>> deleters;
 
             void pushFunction(std::function<void()>&& function) {
-                deletors.emplace_back(std::move(function));
+                deleters.emplace_back(std::move(function));
             }
 
             void flushDeletionQueue() {
-                for (auto & deletor : deletors) {
-                    deletor();
+                for (auto & deleter : deleters) {
+                    deleter();
                 }
-                deletors.clear();
+                deleters.clear();
             }
         };
 

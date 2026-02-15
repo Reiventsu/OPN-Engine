@@ -39,16 +39,6 @@ namespace opn {
         [[nodiscard]] bool wasResized() const { return m_framebufferResized; }
         void resetResizeFlag() { m_framebufferResized = false; }
 
-        // Vulkan integration (for later)
-        [[nodiscard]] std::vector<const char *> getRequiredExtensions() const {
-            uint32_t count = 0;
-            const char **extensions = glfwGetRequiredInstanceExtensions(&count);
-            if (!extensions) {
-                throw std::runtime_error("Failed to get required Vulkan extensions!");
-            }
-            return std::vector(extensions, extensions + count);
-        }
-
         [[nodiscard]] VkSurfaceKHR createSurface(VkInstance _instance) const override {
             VkSurfaceKHR surface;
             if (glfwCreateWindowSurface(_instance, m_window, nullptr, &surface) != VK_SUCCESS) {

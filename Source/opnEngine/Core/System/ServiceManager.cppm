@@ -260,7 +260,6 @@ export namespace opn {
 
         template<IsService T, typename Func>
         static void useService(Func &&func) noexcept {
-
             if (auto result = tryGetService<T>(); result.has_value()) {
                 // Success: Execute the user logic with the const service reference
                 func(result->get());
