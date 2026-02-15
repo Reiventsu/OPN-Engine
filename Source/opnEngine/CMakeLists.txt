@@ -1,6 +1,7 @@
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(volk CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
+find_package(slang CONFIG REQUIRED)
 
 # Added in order of dependency
 add_subdirectory(Dependencies)
