@@ -19,6 +19,8 @@ target_sources(RenderHelpers
         Vulkan/vkDescriptors.cppm
         Vulkan/vkPipeline.cppm
         Vulkan/vkUtil.cppm
+
+        RendererTypes.cppm
 )
 
 target_link_libraries(RenderHelpers

@@ -57,13 +57,14 @@ export namespace opn {
 
             virtual void postInit() = 0;
 
+            virtual iService* getRaw() = 0;
+
             ServiceState state = ServiceState::Unregistered;
         };
 
         template<IsService T>
         struct ServiceHolder : iServiceHolder {
             std::unique_ptr<T> service;
-
 
             explicit ServiceHolder() {
                 opn::logTrace("ServiceManager", "Constructing service holder...");
@@ -95,6 +96,8 @@ export namespace opn {
 
             T &get() { return *service; }
             const T &get() const { return *service; }
+
+            iService* getRaw() override { return service.get(); }
         };
 
     public:
@@ -155,6 +158,20 @@ export namespace opn {
             }
 
             opn::logInfo("ServiceManager", "Post-Initialization complete.");
+        }
+
+        static iService* getRawService(std::type_index _type) {
+            auto itr = services.find(_type);
+            if (itr != services.end()) {
+                return itr->second->getRaw();
+            }
+            return nullptr;
+        }
+
+        static auto getLocatorBridge() {
+            return +[](std::type_index _type) -> opn::iService* {
+                return getRawService(_type);
+            };
         }
 
         template<IsService T>

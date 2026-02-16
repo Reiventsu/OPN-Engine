@@ -15,4 +15,5 @@ target_link_libraries(EntityComponentSystem
         PUBLIC
         Components
         CoreSystems
+        EngineLocator
 )

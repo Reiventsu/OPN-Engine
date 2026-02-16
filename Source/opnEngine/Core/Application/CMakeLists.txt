@@ -13,4 +13,5 @@ target_link_libraries(Application
         PUBLIC
         EngineServices
         CoreUtils
+        EngineLocator
 )

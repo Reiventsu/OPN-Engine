@@ -1,6 +1,5 @@
 module;
 #include <cstdint>
-#include <functional>
 export module opn.ECS:tEntity;
 
 export namespace opn {

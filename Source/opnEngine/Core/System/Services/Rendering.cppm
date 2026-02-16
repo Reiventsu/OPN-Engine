@@ -9,16 +9,20 @@ import opn.Utils.Logging;
 import opn.System.Service.WindowSystem;
 
 export namespace opn {
+    class iRenderingService : public iService {
+    public:
+        virtual RenderBackend& getBackend() = 0;
+    };
+
     template<typename T>
     concept ValidRenderer = std::derived_from<T, RenderBackend>;
 
     template<ValidRenderer Backend>
-    class Rendering final : public Service<Rendering<Backend> > {
+    class Rendering final : public iRenderingService, public Service<Rendering<Backend> > {
         Backend m_Backend{};
 
     public:
-        Backend &getBackend() { return m_Backend; }
-        const Backend &getBackend() const { return m_Backend; }
+        RenderBackend &getBackend() override { return m_Backend; }
 
     protected:
         void onInit() override {

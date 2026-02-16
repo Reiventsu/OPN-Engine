@@ -22,6 +22,7 @@ module;
 export module opn.Renderer.Vulkan;
 
 import opn.Renderer.Backend;
+import opn.Renderer.Types;
 import opn.System.WindowSurfaceProvider;
 import opn.Rendering.Util.vk.vkUtil;
 import opn.Utils.Logging;
@@ -1177,7 +1178,9 @@ export namespace opn {
                                     , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
             );
 
-            drawGeometry( command );
+            startGeometry( command );
+
+            endGeometry( command );
 
             vkUtil::transition_image( command
                                     , m_drawImage.image
@@ -1280,6 +1283,25 @@ export namespace opn {
             vkCmdEndRendering( _command );
         }
 
+        void drawWithReflection(const void *_rawData, const sShaderReflection &_reflection) override {
+            VkCommandBuffer cmd = getCurrentFrame().commandBuffer;
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_meshPipeline);
+
+            for (const auto&[stageFlags, offset, size] : _reflection.pushConstants) {
+                vkCmdPushConstants(
+                    cmd,
+                    m_meshPipelineLayout,
+                    stageFlags,
+                    offset,
+                    size,
+                    _rawData
+                );
+            }
+
+            vkCmdBindIndexBuffer(cmd, m_rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+        }
+
         void submitImmediate( std::function< void( VkCommandBuffer _command ) >&& _function ) {
 
             opn::logTrace("VulkanBackend", "Immediate command received.");
@@ -1370,7 +1392,7 @@ export namespace opn {
             );
         }
 
-        void drawGeometry( VkCommandBuffer _command ) {
+        void startGeometry( VkCommandBuffer _command ) {
             VkRenderingAttachmentInfo colourAttachment = vkUtil::attachment_info( m_drawImage.imageView
                                                                                   , nullptr
                                                                                   , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -1388,40 +1410,15 @@ export namespace opn {
             viewport.height = static_cast<float>(m_drawImage.imageExtent.height);
             viewport.minDepth = 0.f;
             viewport.maxDepth = 1.f;
-
             vkCmdSetViewport( _command, 0, 1, &viewport );
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
             scissor.extent = m_drawImageExtent;
             vkCmdSetScissor( _command, 0, 1, &scissor );
+        }
 
-            vkCmdBindPipeline( _command
-                             , VK_PIPELINE_BIND_POINT_GRAPHICS
-                             , m_trianglePipeline
-            );
-
-            vkCmdDraw( _command, 3, 1, 0, 0 );
-
-            vkCmdBindPipeline( _command, VK_PIPELINE_BIND_POINT_GRAPHICS, m_meshPipeline);
-
-            vkUtil::sGPUDrawPushConstants pushConstants{};
-            pushConstants.worldMatrix = hlslpp::float4x4::identity();
-            pushConstants.vertexBuffer = m_rectangle.vertexBufferAddress;
-
-            vkCmdPushConstants( _command
-                              , m_meshPipelineLayout
-                              , VK_SHADER_STAGE_VERTEX_BIT
-                              , 0, sizeof(vkUtil::sGPUDrawPushConstants)
-                              , &pushConstants
-            );
-            vkCmdBindIndexBuffer( _command
-                                , m_rectangle.indexBuffer.buffer
-                                , 0, VK_INDEX_TYPE_UINT32
-            );
-
-            vkCmdDrawIndexed( _command, 6, 1, 0, 0, 0 );
-
+        void endGeometry( VkCommandBuffer _command ) {
             vkCmdEndRendering( _command );
         }
 
@@ -1438,5 +1435,7 @@ export namespace opn {
 
             completeInit();
         }
+
+
     };
 }

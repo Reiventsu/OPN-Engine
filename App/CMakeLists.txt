@@ -15,6 +15,7 @@ target_link_libraries(ApplicationCode
 add_executable(OPN_App)
 # Needed to do this to make linker see the symbols
 target_link_libraries(OPN_App PRIVATE
+        EngineLocator
     OPN::EngineMain
     -Wl,--whole-archive
     ApplicationCode

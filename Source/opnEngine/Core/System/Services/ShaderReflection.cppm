@@ -4,7 +4,7 @@ module;
 #include <unordered_map>
 #include <vector>
 
-#include "shader-slang/slang-com-ptr.h"
+#include "slang-com-ptr.h"
 #include "volk.h"
 export module opn.System.Service.ShaderReflection;
 import opn.System.ServiceInterface;

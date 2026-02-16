@@ -6,6 +6,7 @@ target_sources(Components
         Components.cppm
         Renderable.cppm
         Transform.cppm
+        ShaderOverride.cppm
 )
 
 target_link_libraries(Components

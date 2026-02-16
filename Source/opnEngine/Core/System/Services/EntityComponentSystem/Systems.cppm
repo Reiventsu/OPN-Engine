@@ -1,9 +1,13 @@
 module;
 #include "hlsl++.h"
+#include "volk.h"
 export module opn.ECS:Systems;
 import :Registry;
 import opn.ECS.Components;
 import opn.Utils.Logging;
+import opn.Locator;
+import opn.Renderer.Vulkan;
+import opn.System.Service.ShaderReflection;
 
 export namespace opn::systems {
     class Systems final {
@@ -16,14 +20,20 @@ export namespace opn::systems {
             : m_registry(&_registry) {}
 
         void renderMeshes() {
+            auto& backend = Locator::Services<Rendering<VulkanImpl>>().getBackend();
+            auto& compiler = Locator::Services<ShaderCompiler>();
+
             m_registry->forEach<components::Transform, components::Renderable>(
-                [](tEntity _entity,
-                   const components::Transform& _transform,
-                   const components::Renderable& _renderable) {
+                [&](tEntity _entity, const auto& _transform, const auto& _renderable) {
 
-                    if (!_renderable.visible) return;
+                    std::string shaderPath = "shaders/default.slang";
+                    if (m_registry->hasComponent<components::ShaderOverride>(_entity)) {
+                    }
 
-                    auto worldMatrix = _transform.getMatrix();
+                    if (auto reflection = compiler.compile(shaderPath); !reflection) {
+                        opn::logError("ECS", "Failed to compile shader: {}", shaderPath);
+                        return;
+                    }
 
                 }
             );

@@ -15,8 +15,9 @@ module;
 #endif
 
 export module opn.Engine;
+import opn.Locator;
 import opn.Application;
-import opn.System.EngineServices;
+import opn.System.EngineServiceList;
 import opn.System.Service.Time;
 import opn.System.Service.WindowSystem;
 import opn.System.JobDispatcher;
@@ -54,6 +55,13 @@ export namespace opn::detail {
 
             JobDispatcher::init();
             EngineServiceManager::init();
+
+            // Initialize Locator with dependency-injection bridges
+            Locator::initialize(
+                EngineServiceManager::getLocatorBridge(),
+                JobDispatcher::getLocatorBridge()
+            );
+
             EngineServiceManager::registerServices();
 
             logInfo("OPN Engine", "Engine initialized. Starting application: {}.", application->getName());

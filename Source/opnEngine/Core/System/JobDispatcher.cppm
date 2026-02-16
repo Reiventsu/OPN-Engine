@@ -10,8 +10,6 @@ module;
 #include <unordered_map>
 #include <mutex>
 
-#include <bit>
-
 export module opn.System.JobDispatcher;
 
 import opn.System.Thread.MPSCQueue;
@@ -135,6 +133,16 @@ export namespace opn {
             auto &signal = s_queueSignals[static_cast<size_t>(_type)];
             signal.fetch_add(1, std::memory_order_release);
             signal.notify_all();
+        }
+
+        // Locator support - returns a function pointer for dependency-free access
+        static auto getLocatorBridge() {
+            return +[]() -> opn::JobDispatcher* {
+                // JobDispatcher is monostate, return a placeholder pointer
+                // that's valid for the lifetime of the program
+                static JobDispatcher instance;
+                return &instance;
+            };
         }
 
         static MPSCQueue<sTask, QUEUE_SIZE> &getQueue(const eJobType _type) noexcept {

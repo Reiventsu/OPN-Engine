@@ -1,6 +1,5 @@
 module;
-#include <concepts>
-
+#include <type_traits>
 export module opn.System.SystemTypeList;
 
 export namespace opn {
@@ -9,7 +8,7 @@ export namespace opn {
         template<typename T>
         static constexpr bool contains() {
             return (std::is_same_v<T, Types> || ...);
-        };
+        }
 
         static constexpr std::size_t size() {
             return sizeof...(Types);

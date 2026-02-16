@@ -2,7 +2,6 @@ module;
 // Use #include directives between here and the
 // export module as you would normally.
 #include <string>
-#include <vector_float_type.h>
 
 export module opn.UserApp; // Mandatory
 import opn.Application;    // Mandatory
@@ -24,8 +23,7 @@ protected:
 
         using namespace opn;
 
-        // 1. Get the ECS safely via the Manager
-        EngineServiceManager::useService<EntityComponentSystem>([](const auto& _ecs) {
+        Locator::useService<EntityComponentSystem>([](const auto& _ecs) {
             // 2. Dispatch the spawning job to a worker thread
             Dispatch::execute([&_ecs]() {
                 logInfo("App", "Starting mass entity spawn...");
