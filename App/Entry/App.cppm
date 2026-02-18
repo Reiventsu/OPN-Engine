@@ -7,9 +7,8 @@ export module opn.UserApp; // Mandatory
 import opn.Application;    // Mandatory
 import opn.Utils.Logging;  // Optional
 // Use import directives between here and the class
-import opn.ECS;
-import opn.ECS.Components;
 import opn.System.Jobs.Types;
+import opn.ECS;
 
 export class UserApplication final : public opn::iApplication {
 protected:

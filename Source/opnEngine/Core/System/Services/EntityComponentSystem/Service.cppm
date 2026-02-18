@@ -8,7 +8,7 @@ import :Systems;
 import :ECB;
 import opn.ECS.Components;
 import opn.Utils.Logging;
-import opn.System.JobDispatcher;
+import opn.System.Jobs.Dispatcher;
 
 export namespace opn {
     class EntityComponentSystem final : public Service<EntityComponentSystem> {

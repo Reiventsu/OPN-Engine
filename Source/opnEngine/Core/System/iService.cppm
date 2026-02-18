@@ -12,12 +12,12 @@ namespace opn {
     public:
         virtual ~iService() = default;
 
-        virtual void init() = 0;
+        virtual void init() {};
 
         virtual void postInit() {
         }
 
-        virtual void shutdown() = 0;
+        virtual void shutdown() {};
 
         virtual void update(float _deltaTime) {
         }

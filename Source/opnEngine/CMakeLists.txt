@@ -15,6 +15,5 @@ add_library(OPN::Engine ALIAS OPN_Engine)
 
 target_link_libraries(OPN_Engine
         INTERFACE
-        EngineServices
         Application
 )

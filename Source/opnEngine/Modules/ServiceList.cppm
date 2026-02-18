@@ -1,14 +1,11 @@
-module;
-#include <concepts>
-#include <type_traits>
-
-export module opn.System.EngineServiceList;
+export module opn.Modules.ServiceList;
 
 import opn.Modules.Services;
 import opn.Renderer.RenderPackage;
 import opn.System.SystemTypeList;
 import opn.System.ServiceManager;
 
+// Defines services to be used in order of dependency.
 export namespace opn {
     using EngineServices = SystemTypeList<
         Time,
@@ -18,7 +15,5 @@ export namespace opn {
         AssetSystem,
         EntityComponentSystem
     >;
-
     using EngineServiceManager = ServiceManager_Impl<EngineServices>;
-
 }
