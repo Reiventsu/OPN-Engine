@@ -14,14 +14,14 @@ export namespace opn {
         using TimePoint = std::chrono::high_resolution_clock::time_point;
         using Duration = std::chrono::duration<double>;
 
-        static std::atomic_bool s_initialized;
+        std::atomic_bool m_initialized;
 
         TimePoint m_startTime{};
         TimePoint m_lastFrameTime{};
 
         double m_deltaTimeReal{0.0};
         double m_deltaTimeGame{0.0};
-        double m_timeScale{0.0};
+        double m_timeScale{1.0};
 
         bool m_paused{false};
 
@@ -31,18 +31,22 @@ export namespace opn {
 
     protected:
         void onInit() override {
-            m_startTime = Clock::now();
-            m_lastFrameTime = m_startTime;
-            m_accumulator = 0.0;
+            if (!m_initialized.exchange(true, std::memory_order::relaxed)) {
+                m_startTime = Clock::now();
+                m_lastFrameTime = m_startTime;
+                m_accumulator = 0.0;
+            }
         }
 
         void onShutdown() override {
-            m_deltaTimeReal = 0.0;
-            m_deltaTimeGame = 0.0;
+            if (m_initialized.exchange(false, std::memory_order::relaxed)) {
+                m_deltaTimeReal = 0.0;
+                m_deltaTimeGame = 0.0;
+            }
         }
 
     public:
-        void onUpdate(float _deltaTime) override {
+        void onUpdate(float /*_deltaTime*/) override {
             const auto currentTime = Clock::now();
             m_deltaTimeReal = std::chrono::duration<double>(currentTime - m_lastFrameTime).count();
             m_lastFrameTime = currentTime;
