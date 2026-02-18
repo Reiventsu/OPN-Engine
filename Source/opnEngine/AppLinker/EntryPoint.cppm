@@ -55,7 +55,6 @@ export namespace opn::detail {
             JobDispatcher Jobs;
             application->onPreInit();
 
-
             Jobs.init();
             Services.init();
 
@@ -78,8 +77,6 @@ export namespace opn::detail {
 
             const auto* time = Locator::getService<Time>();
             const auto* window = Locator::getService<WindowSystem>();
-
-
 
             while (!window->shouldClose()) {
                 const auto dt = static_cast<float>(time->getDeltaTime());
