@@ -21,7 +21,7 @@ export namespace opn {
             dimension.height = _height;
         };
 
-        virtual GLFWwindow* getGLFWWindow() const {
+        [[nodiscard]] virtual GLFWwindow* getGLFWWindow() const {
             return nullptr;
         }
 

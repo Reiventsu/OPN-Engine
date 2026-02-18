@@ -16,6 +16,8 @@ module;
 #include "volk.h"
 #endif
 
+#include <GLFW/glfw3.h>
+
 #include "VkBootstrap.h"
 #include "vk_mem_alloc.h"
 
@@ -52,6 +54,13 @@ export namespace opn {
         vkb::Instance      m_vkbInstance;
         vkb::Device        m_vkbDevice;
         vkb::DispatchTable m_dispatchTable;
+
+        // Debounce
+        bool m_pendingResize{ false };
+        float m_resizeTimer{0.0f};
+        uint32_t m_pendingWidth{0};
+        uint32_t m_pendingHeight{0};
+        constexpr static float RESIZE_DEBOUNCE_SECONDS = 0.067f;
 
         struct sDeletionQueue {
             std::deque<std::function<void()>> deleters;
@@ -136,6 +145,11 @@ export namespace opn {
             VkPipeline pipeline{ };
             VkPipelineLayout layout{ };
             sComputePushConstants data;
+        };
+
+        struct sReflectedPipeline {
+            VkPipelineLayout layout{ };
+            std::vector<VkDescriptorSetLayout> setLayouts{ };
         };
 
         std::vector< sComputeEffect > m_backgroundEffects{};
@@ -1074,13 +1088,32 @@ export namespace opn {
             opn::logDebug("VulkanBackend", "Shutdown complete.");
         }
 
-        void update( float _deltaTime ) override {
+        void update( const float _deltaTime ) override {
             if (m_isInitialized == false) return;
 
-            auto [width, height ] = m_windowHandle->dimension;
+            int glfwWidth, glfwHeight;
+            glfwGetFramebufferSize( m_windowHandle->getGLFWWindow(), &glfwWidth, &glfwHeight );
+            const auto width  = static_cast< uint32_t >( glfwWidth  );
+            const auto height = static_cast< uint32_t >( glfwHeight );
 
-            if ( width > 0 && height > 0 && m_swapchain == VK_NULL_HANDLE ) {
-                createSwapchain();
+            const bool sizeMismatch = ( width != m_pendingWidth || height != m_pendingHeight );
+
+            if( sizeMismatch || (m_swapchain == VK_NULL_HANDLE && width > 0 && height > 0)) {
+                m_pendingResize = true;
+                m_pendingWidth  = width;
+                m_pendingHeight = height;
+                m_resizeTimer   = 0.0f;
+            }
+
+            if( m_pendingResize) {
+                m_resizeTimer += _deltaTime;
+
+                if( m_resizeTimer >= RESIZE_DEBOUNCE_SECONDS ) {
+                    m_pendingResize = false;
+                    m_resizeTimer = 0.0f;
+                    m_windowHandle->setDimensions(width, height);
+                    createSwapchain();
+                }
             }
 
             if (!shouldRender()) {
