@@ -3,10 +3,11 @@ module;
 // export module as you would normally.
 #include <string>
 
-export module opn.UserApp; // Mandatory
-import opn.Application;    // Mandatory
-import opn.Utils.Logging;  // Optional
-// Use import directives between here and the class
+// Mandatory
+export module opn.UserApp;
+import opn.Application;
+import opn.Utils.Logging;
+// Optional: Use import directives between here and the class
 import opn.System.Jobs.Types;
 import opn.ECS;
 
@@ -20,22 +21,21 @@ protected:
     }
 
     void onPostInit() override {
-        using namespace opn;
 
-        if (auto* ecs = Locator::getService<EntityComponentSystem>()) {
-            Locator::submit(eJobType::General, [ecs]() {
-                logInfo("App", "Starting mass entity spawn...");
+        if (auto* ecs = opn::Locator::getService<opn::EntityComponentSystem>()) {
+            opn::Locator::submit(opn::eJobType::General, [ecs]() {
+                opn::logInfo("App", "Starting mass entity spawn...");
 
                 for (int i = 0; i < 1000; ++i) {
-                    auto e = ecs->createEntity();
-                    ecs->addComponent(e, components::Transform{
+                    const auto e = ecs->createEntity();
+                    ecs->addComponent(e, opn::components::Transform{
                         .position = { static_cast<float>(i), 0.0f, 0.0f },
                         .rotation = {},
                         .scale    = {}
                     });
                 }
 
-                logInfo("App", "Successfully queued 1000 entities!");
+                opn::logInfo("App", "Successfully queued 1000 entities!");
             });
         }
     }

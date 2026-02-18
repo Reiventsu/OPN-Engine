@@ -8,6 +8,7 @@ import opn.Utils.Logging;
 import opn.Utils.Locator;
 import opn.System.Service.Rendering;
 import opn.System.Service.ShaderReflection;
+import opn.System.Service.Time;
 
 export namespace opn::systems {
     class Systems final {
@@ -22,6 +23,7 @@ export namespace opn::systems {
         void renderMeshes() {
             auto& backend = Locator::getService<iRenderingService>()->getBackend();
             auto* compiler = Locator::getService<ShaderCompiler>();
+            auto* time = Locator::getService<Time>();
 
             m_registry->forEach<components::Transform, components::Renderable>(
                 [&](tEntity _entity, const auto& _transform, const auto& _renderable) {
@@ -34,7 +36,6 @@ export namespace opn::systems {
                         opn::logError("ECS", "Failed to compile shader: {}", shaderPath);
                         return;
                     }
-
                 }
             );
         }

@@ -1435,7 +1435,5 @@ export namespace opn {
 
             completeInit();
         }
-
-
     };
 }

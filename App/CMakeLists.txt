@@ -1,3 +1,4 @@
+add_subdirectory(src)
 add_library(ApplicationCode)
 
 target_sources(ApplicationCode

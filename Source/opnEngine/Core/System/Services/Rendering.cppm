@@ -19,7 +19,7 @@ export namespace opn {
     concept ValidRenderer = std::derived_from<T, RenderBackend>;
 
     template<ValidRenderer Backend>
-    class Rendering final : public Service<Rendering<Backend> >, public iRenderingService {
+    class Rendering final : public Service<Rendering<Backend>, iRenderingService> {
         Backend m_Backend{};
 
     public:

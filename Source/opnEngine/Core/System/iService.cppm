@@ -12,12 +12,14 @@ namespace opn {
     public:
         virtual ~iService() = default;
 
-        virtual void init() {};
+        virtual void init() {
+        };
 
         virtual void postInit() {
         }
 
-        virtual void shutdown() {};
+        virtual void shutdown() {
+        };
 
         virtual void update(float _deltaTime) {
         }
@@ -26,8 +28,8 @@ namespace opn {
     export template<typename T>
     concept IsService = std::derived_from<T, iService>;
 
-    export template<typename T>
-    class Service : public iService {
+    export template<typename T, IsService Base = iService>
+    class Service : public Base {
     public:
         static bool isActive() { return s_instance != nullptr; }
 
@@ -82,8 +84,9 @@ namespace opn {
     };
 
     export class iServiceRegistry {
-        public:
+    public:
         virtual ~iServiceRegistry() = default;
-        virtual iService* getRawService(std::type_index _type) = 0;
+
+        virtual iService *getRawService(std::type_index _type) = 0;
     };
 }
