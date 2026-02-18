@@ -8,6 +8,6 @@ target_sources(EngineLocator
 
 target_link_libraries(EngineLocator
         PUBLIC
-        ServiceTypes
+        CoreUtils
         CoreSystems
 )

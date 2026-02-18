@@ -6,7 +6,7 @@ target_sources(RenderInterface
         RenderBackend.cppm
 )
 
-target_link_libraries(RenderInterface PUBLIC WindowingInterface)
+target_link_libraries(RenderInterface PUBLIC WindowingInterface RenderHelpers)
 
 add_library(RenderHelpers)
 
@@ -19,13 +19,11 @@ target_sources(RenderHelpers
         Vulkan/vkDescriptors.cppm
         Vulkan/vkPipeline.cppm
         Vulkan/vkUtil.cppm
-
         RendererTypes.cppm
 )
 
 target_link_libraries(RenderHelpers
         PUBLIC
-        CoreUtils
         Vulkan::Headers
         VulkanMemoryAllocator
         glfw
@@ -33,6 +31,8 @@ target_link_libraries(RenderHelpers
         hlslpp
         simdjson
         fastgltf::fastgltf
+        PRIVATE
+        CoreUtils
 )
 
 add_library(Renderer)
@@ -53,6 +53,7 @@ target_link_libraries(Renderer
         RenderInterface
         WindowingInterface
         imgui
+        PRIVATE
         CoreSystems
 )
 

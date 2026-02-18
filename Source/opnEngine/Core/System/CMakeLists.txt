@@ -7,7 +7,9 @@ target_sources(CoreSystems
         SystemTypeList.cppm
         iService.cppm
         ServiceManager.cppm
-        JobDispatcher.cppm
+        Jobs/JobTypes.cppm
+        Jobs/JobHandle.cppm
+        Jobs/JobDispatcher.cppm
 )
 
 target_link_libraries(CoreSystems

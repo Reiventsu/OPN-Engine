@@ -22,24 +22,18 @@ target_sources(Services
         Rendering.cppm
         AssetService/AssetSystem.cppm
         SystemsPackage.cppm
-
-        PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../Locator/Locator.cpp"
 )
 
 target_link_libraries(Services
         PUBLIC
-        EngineLocator
-        EngineServices
         CoreSystems
-        CoreUtils
+        EngineLocator
         AssetTypes
         AssetDefines
         WindowingInterface
         RenderInterface
         EntityComponentSystem
         glfw
-        RenderHelpers
         imgui
         slang::slang
 )

@@ -8,4 +8,5 @@ target_sources(CoreUtils
 
         # Exceptions
         Exceptions/Except_MultipleInit.cppm
+
 )

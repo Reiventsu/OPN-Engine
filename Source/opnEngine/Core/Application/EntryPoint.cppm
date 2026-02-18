@@ -15,12 +15,12 @@ module;
 #endif
 
 export module opn.Engine;
-import opn.Locator;
+import opn.Utils.Locator;
+import opn.System.Jobs.Dispatcher;
 import opn.Application;
 import opn.System.EngineServiceList;
 import opn.System.Service.Time;
 import opn.System.Service.WindowSystem;
-import opn.System.JobDispatcher;
 import opn.Utils.Logging;
 
 export namespace opn::detail {
@@ -49,37 +49,42 @@ export namespace opn::detail {
 #endif
 
         const auto &application = opn::linkApplication();
-
         try {
+            EngineServiceManager Services;
+            JobDispatcher Jobs;
             application->onPreInit();
 
-            JobDispatcher::init();
-            EngineServiceManager::init();
 
-            // Initialize Locator with dependency-injection bridges
-            Locator::initialize(
-                EngineServiceManager::getLocatorBridge(),
-                JobDispatcher::getLocatorBridge()
+            Jobs.init();
+            Services.init();
+
+            auto [submit, submitAfter, waitFence, checkFence] = Jobs.getLocatorBridge();
+            Locator::registerJobDispatcher(
+                std::move(submit),
+                std::move(submitAfter),
+                std::move(waitFence),
+                std::move(checkFence)
             );
+            Locator::registerServiceManager(Services.getLocatorBridge());
 
-            EngineServiceManager::registerServices();
+            Services.registerServices();
 
             logInfo("OPN Engine", "Engine initialized. Starting application: {}.", application->getName());
             application->onInit();
 
-            EngineServiceManager::postInitAll();
+            Services.postInitAll();
             application->onPostInit();
 
-            auto &time = EngineServiceManager::getService<Time>();
-            auto &window = EngineServiceManager::getService<WindowSystem>();
+            const auto* time = Locator::getService<Time>();
+            const auto* window = Locator::getService<WindowSystem>();
 
 
 
-            while (!window.shouldClose()) {
-                const auto dt = static_cast<float>(time.getDeltaTime());
-                window.pollEvents();
+            while (!window->shouldClose()) {
+                const auto dt = static_cast<float>(time->getDeltaTime());
+                window->pollEvents();
 
-                EngineServiceManager::updateAll(dt);
+                Services.updateAll(dt);
                 application->onUpdate(dt);
             }
 
@@ -87,8 +92,8 @@ export namespace opn::detail {
             application->onShutdown();
 
             logInfo("OPN Engine", "Shutting down...");
-            EngineServiceManager::shutdown();
-            JobDispatcher::shutdown();
+            Services.shutdown();
+            Jobs.shutdown();
 
             logInfo("OPN Engine", "Application post-shutdown cleanup...");
             application->onPostShutdown();

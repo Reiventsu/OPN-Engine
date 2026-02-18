@@ -2,6 +2,7 @@ module;
 #include <algorithm>
 #include <atomic>
 #include <expected>
+#include <functional>
 #include <memory>
 #include <ranges>
 #include <source_location>
@@ -19,6 +20,17 @@ import opn.Utils.Exceptions;
 export namespace opn {
     template<typename ServiceList>
     class ServiceManager_Impl {
+    public:
+        ServiceManager_Impl() = default;
+
+        ServiceManager_Impl(const ServiceManager_Impl &) = delete;
+
+        ServiceManager_Impl &operator=(const ServiceManager_Impl &) = delete;
+
+        ServiceManager_Impl(ServiceManager_Impl &&) = delete;
+
+        ServiceManager_Impl &operator=(ServiceManager_Impl &&) = delete;
+
         enum class ServiceState {
             Unregistered,
             Registered,
@@ -48,6 +60,7 @@ export namespace opn {
             Unknown
         };
 
+    private:
         struct iServiceHolder {
             virtual ~iServiceHolder() = default;
 
@@ -57,7 +70,7 @@ export namespace opn {
 
             virtual void postInit() = 0;
 
-            virtual iService* getRaw() = 0;
+            virtual iService *getRaw() = 0;
 
             ServiceState state = ServiceState::Unregistered;
         };
@@ -76,114 +89,119 @@ export namespace opn {
                 service->init();
             }
 
-            void postInit() override {
-                service->postInit();
-            }
+            void postInit() override { service->postInit(); }
 
             void shutdown() override {
                 if (service) {
                     opn::logTrace("ServiceManager", "Shutting down service holder...");
                     service->shutdown();
-                } else opn::logWarning("ServiceManager", "Service holder already shutdown or was never started.");
+                } else {
+                    opn::logWarning("ServiceManager", "Service holder already shutdown or was never started.");
+                }
             }
 
             void update(float _deltaTime) override {
-                if (service)
-                    service->update(_deltaTime);
-                else
-                    opn::logWarning("ServiceManager", "Update called on service holder but failed.");
+                if (service) service->update(_deltaTime);
+                else opn::logWarning("ServiceManager", "Update called on service holder but failed.");
             }
 
             T &get() { return *service; }
             const T &get() const { return *service; }
-
-            iService* getRaw() override { return service.get(); }
+            iService *getRaw() override { return service.get(); }
         };
 
+        std::atomic_bool m_initialized{false};
+        std::unordered_map<std::type_index, std::unique_ptr<iServiceHolder> > m_services;
+        std::vector<std::type_index> m_initOrder;
+
+        template<IsService T>
+        T &getServiceInternal() {
+            auto itr = m_services.find(typeid(T));
+            auto *holder = static_cast<ServiceHolder<T> *>(itr->second.get());
+            return holder->get();
+        }
+
     public:
-        static void init(const std::source_location _loc = std::source_location::current()) {
-            if (initialized.exchange(true, std::memory_order_acq_rel)) {
+
+        void init(const std::source_location _loc = std::source_location::current()) {
+            if (m_initialized.exchange(true, std::memory_order_acq_rel)) {
                 throw MultipleInit_Exception("ServiceManager", _loc);
             }
             opn::logInfo("ServiceManager", "ServiceManager initialized successfully. Services: {}",
                          ServiceList::size());
         }
 
-        static void shutdown() {
-            if (!initialized.exchange(false, std::memory_order_acq_rel)) {
-                opn::logWarning("ServiceManager", "Shutdown called, but ServiceManager wasn't initialized.");
-                return;
+        void shutdown() {
+            if (!m_initialized.exchange(false, std::memory_order_acq_rel)) {
+                return; // Already shut down or never initialized
             }
 
-            opn::logInfo("ServiceManager", "Shutting down {} services...", services.size());
+            opn::logInfo("ServiceManager", "Shutting down {} services...", m_services.size());
 
-            for (auto &itr: std::ranges::reverse_view(initOrder)) {
-                auto servItr = services.find(itr);
-                if (servItr != services.end()) {
+            for (auto &itr: std::ranges::reverse_view(m_initOrder)) {
+                auto servItr = m_services.find(itr);
+                if (servItr != m_services.end()) {
                     servItr->second->shutdown();
                 }
             }
-            services.clear();
-            initOrder.clear();
+            m_services.clear();
+            m_initOrder.clear();
 
             opn::logInfo("ServiceManager", "All services shutdown successfully.");
         }
 
-        static void updateAll(const float _deltaTime) {
-            if (!initialized.load(std::memory_order_acquire)) {
+        void updateAll(const float _deltaTime) {
+            if (!m_initialized.load(std::memory_order_acquire)) {
                 opn::logWarning("ServiceManager", "Update called, but ServiceManager wasn't initialized.");
                 return;
             }
 
-            for (const auto &typeIndex: initOrder) {
-                auto itr = services.find(typeIndex);
-                if (itr != services.end()) {
+            for (const auto &typeIndex: m_initOrder) {
+                auto itr = m_services.find(typeIndex);
+                if (itr != m_services.end()) {
                     itr->second->update(_deltaTime);
                 }
             }
         }
 
-        static void postInitAll() {
+        void postInitAll() {
             opn::logInfo("ServiceManager", "Post-Initializing services...");
-            if (!initialized.load(std::memory_order_acquire)) {
+            if (!m_initialized.load(std::memory_order_acquire)) {
                 opn::logWarning("ServiceManager", "PostInit called, but ServiceManager wasn't initialized.");
                 return;
             }
-            for (const auto &typeIndex: initOrder) {
-                auto itr = services.find(typeIndex);
-                if (itr != services.end()) {
+            for (const auto &typeIndex: m_initOrder) {
+                auto itr = m_services.find(typeIndex);
+                if (itr != m_services.end()) {
                     itr->second->postInit();
                     itr->second->state = ServiceState::Ready;
                 }
             }
-
             opn::logInfo("ServiceManager", "Post-Initialization complete.");
         }
 
-        static iService* getRawService(std::type_index _type) {
-            auto itr = services.find(_type);
-            if (itr != services.end()) {
+        iService *getRawService(std::type_index _type) {
+            auto itr = m_services.find(_type);
+            if (itr != m_services.end()) {
                 return itr->second->getRaw();
             }
             return nullptr;
         }
 
-        static auto getLocatorBridge() {
-            return +[](std::type_index _type) -> opn::iService* {
-                return getRawService(_type);
+        std::function<opn::iService*(std::type_index)> getLocatorBridge() {
+            return [this](std::type_index _type) -> opn::iService * {
+                return this->getRawService(_type);
             };
         }
 
         template<IsService T>
-        static T &registerService() {
+        T &registerService() {
             static_assert(ServiceList::template contains<T>(),
-                          "ERROR: Service not found in ServiceList."
-                          "You must add this service to your application's service list declaration."
-            );
+                          "ERROR: Service not found in ServiceList.");
 
             const auto typeIdx = std::type_index(typeid(T));
 
-            if (services.contains(typeIdx)) {
+            if (m_services.contains(typeIdx)) {
                 opn::logWarning("ServiceManager", "Service already registered. Returning existing instance.");
                 return getServiceInternal<T>();
             }
@@ -193,43 +211,36 @@ export namespace opn {
             holder->init();
 
             T &serviceRef = holder->get();
-            services.emplace(typeIdx, std::move(holder));
-            initOrder.emplace_back(typeIdx);
+            m_services.emplace(typeIdx, std::move(holder));
+            m_initOrder.emplace_back(typeIdx);
 
             opn::logInfo("ServiceManager", "Service registered successfully.");
-
             return serviceRef;
         }
 
         template<IsService T>
-        [[nodiscard]] static bool isRegistered() noexcept {
-            static_assert(ServiceList::template contains<T>(),
-                          "Service not in ServiceList.");
-
-            return services.contains(typeid(T));
+        [[nodiscard]] bool isRegistered() const noexcept {
+            static_assert(ServiceList::template contains<T>(), "Service not in ServiceList.");
+            return m_services.contains(typeid(T));
         }
 
-        [[nodiscard]] static size_t getServiceCount() noexcept { return services.size(); }
+        [[nodiscard]] size_t getServiceCount() const noexcept { return m_services.size(); }
 
-        [[nodiscard]] static std::vector<std::type_index> getServiceTypes() noexcept {
+        [[nodiscard]] std::vector<std::type_index> getServiceTypes() const noexcept {
             std::vector<std::type_index> result;
-            result.reserve(services.size());
-
-            for (const auto &[type, _]: services) {
+            result.reserve(m_services.size());
+            for (const auto &[type, _]: m_services) {
                 result.emplace_back(type);
             }
             return result;
         }
 
         template<IsService T>
-        [[nodiscard]] static const T &getService() {
-            static_assert(ServiceList::template contains<T>(),
-                          "Service not in ServiceList. "
-                          "Cannot access services not in your declared list."
-            );
+        [[nodiscard]] T &getService() {
+            static_assert(ServiceList::template contains<T>(), "Service not in ServiceList.");
 
-            auto itr = services.find(typeid(T));
-            if (itr == services.end()) {
+            auto itr = m_services.find(typeid(T));
+            if (itr == m_services.end()) {
                 opn::logCritical("ServiceManager", "Service not registered!");
                 throw std::runtime_error("Service not registered!");
             }
@@ -239,99 +250,67 @@ export namespace opn {
         }
 
         template<IsService T>
-        [[nodiscard]] static std::expected<std::reference_wrapper<const T>, ServiceError> tryGetService() noexcept {
+        [[nodiscard]] std::expected<std::reference_wrapper<T>, ServiceError> tryGetService() noexcept {
             const auto typeIdx = std::type_index(typeid(T));
-            auto itr = services.find(typeIdx);
+            auto itr = m_services.find(typeIdx);
 
-            if (itr == services.end()) {
-                return std::unexpected(ServiceError::NotRegistered);
-            }
+            if (itr == m_services.end()) return std::unexpected(ServiceError::NotRegistered);
 
             const auto &holder = itr->second;
-
-            if (holder->state == ServiceState::ShuttingDown) {
-                return std::unexpected(ServiceError::ShuttingDown);
-            }
-
-            if (holder->state != ServiceState::Ready) {
-                return std::unexpected(ServiceError::NotInitialized);
-            }
+            if (holder->state == ServiceState::ShuttingDown) return std::unexpected(ServiceError::ShuttingDown);
+            if (holder->state != ServiceState::Ready) return std::unexpected(ServiceError::NotInitialized);
 
             auto *concreteHolder = static_cast<ServiceHolder<T> *>(holder.get());
             return std::ref(concreteHolder->get());
         }
 
-        static void registerServices() {
+        void registerServices() {
             opn::logInfo("ServiceManager", "Registering services from declaration list.");
-
-            ServiceList::forEach([]<typename T>(std::type_identity<T>) {
+            ServiceList::forEach([this]<typename T>(std::type_identity<T>) {
                 if constexpr (IsService<T>) {
-                    registerService<T>();
+                    this->registerService<T>();
                 } else {
                     static_assert(IsService<T>, "Type in ServiceList does not inherit from iService!");
                 }
             });
-
-            opn::logInfo("ServiceManager", "{} services registered successfully.", services.size());
+            opn::logInfo("ServiceManager", "{} services registered successfully.", m_services.size());
         }
 
         template<IsService T, typename Func>
-        static void useService(Func &&func) noexcept {
+        void useService(Func &&func) noexcept {
             if (auto result = tryGetService<T>(); result.has_value()) {
-                // Success: Execute the user logic with the const service reference
                 func(result->get());
             } else {
                 const ServiceError err = result.error();
                 std::string_view typeName = typeid(T).name();
 
                 switch (err) {
-                    case ServiceError::NotRegistered:
-                        logError("ServiceManager",
-                                 "Access failed: Service [{}] was never registered in the ServiceList.", typeName);
+                    case ServiceError::NotRegistered: logError( "ServiceManager"
+                                                              , "Access failed: [{}] not registered."
+                                                              , typeName );
                         break;
-
-                    case ServiceError::NotInitialized:
-                        logError("ServiceManager",
-                                 "Access failed: Service [{}] is registered but not yet 'Ready' (check init/postInit order).",
-                                 typeName);
+                    case ServiceError::NotInitialized: logError( "ServiceManager"
+                                                               , "Access failed: [{}] not 'Ready'."
+                                                               , typeName );
                         break;
-
-                    case ServiceError::ShuttingDown:
-                        logError("ServiceManager", "Access denied: Service [{}] is currently shutting down.", typeName);
+                    case ServiceError::ShuttingDown: logError( "ServiceManager"
+                                                             , "Access denied: [{}] shutting down."
+                                                             , typeName );
                         break;
-
-                    case ServiceError::DependencyMissing:
-                        logError("ServiceManager", "Access failed: Service [{}] has missing or failed dependencies.",
-                                 typeName);
+                    case ServiceError::DependencyMissing: logError( "ServiceManager"
+                                                                  , "Access failed: [{}] missing dependencies."
+                                                                  , typeName );
                         break;
-
-                    case ServiceError::HardwareUnsupported:
-                        logCritical("ServiceManager",
-                                    "Access failed: Hardware does not support requirements for Service [{}].",
-                                    typeName);
+                    case ServiceError::HardwareUnsupported: logCritical( "ServiceManager"
+                                                                       , "Access failed: Hardware unsupported for [{}]."
+                                                                       , typeName );
                         break;
-
-                    case ServiceError::Unknown:
-                    default:
-                        logError("ServiceManager",
-                                 "Access failed: Service [{}] encountered an unhandled or unknown error.", typeName);
+                    default: logError( "ServiceManager"
+                                     , "Access failed: [{}] unknown error."
+                                     , typeName );
                         break;
                 }
             }
         }
-
-    private:
-        friend class JobDispatcher;
-
-        template<IsService T>
-        static T &getServiceInternal() {
-            auto itr = services.find(typeid(T));
-            auto *holder = static_cast<ServiceHolder<T> *>(itr->second.get());
-            return holder->get();
-        }
-
-        inline static std::atomic_bool initialized{false};
-        inline static std::unordered_map<std::type_index, std::unique_ptr<iServiceHolder> > services;
-        inline static std::vector<std::type_index> initOrder;
     };
 } // namespace opn

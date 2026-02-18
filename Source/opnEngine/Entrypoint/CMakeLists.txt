@@ -9,7 +9,6 @@ target_sources(EngineServices
 target_link_libraries(EngineServices
         PUBLIC
         CoreSystems
-        EngineLocator
         Services
         Renderer
 )

@@ -4,7 +4,6 @@ module;
 
 export module opn.System.EngineServiceList;
 
-import opn.Locator;
 import opn.System.Services;
 import opn.Renderer.RenderPackage;
 import opn.System.SystemTypeList;
@@ -22,12 +21,4 @@ export namespace opn {
 
     using EngineServiceManager = ServiceManager_Impl<EngineServices>;
 
-    struct EngineBootstrapper {
-        static void init() {
-            EngineServices::forEach([]<typename T>(std::type_identity<T>) {
-                T* instance = ServiceManager_Impl<EngineServices>::getService<T>();
-                Locator::_internal_registerService(typeid(T), instance);
-            });
-        }
-    };
 }
