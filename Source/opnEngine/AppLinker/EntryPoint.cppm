@@ -59,13 +59,13 @@ export namespace opn::detail {
             Services.init();
 
             auto [submit, submitAfter, waitFence, checkFence] = Jobs.getLocatorBridge();
-            Locator::registerJobDispatcher(
+            Locator::registration::registerJobDispatcher(
                 std::move(submit),
                 std::move(submitAfter),
                 std::move(waitFence),
                 std::move(checkFence)
             );
-            Locator::registerServiceManager(Services.getLocatorBridge());
+            Locator::registration::registerServiceManager(Services.getLocatorBridge());
 
             Services.registerServices();
 

@@ -6,6 +6,8 @@ find_package(slang CONFIG REQUIRED)
 # Added in order of dependency
 add_subdirectory(Dependencies)
 add_subdirectory(Core)
+add_subdirectory(Modules)
+add_subdirectory(AppLinker)
 add_subdirectory(Entrypoint)
 
 add_library(OPN_Engine INTERFACE)

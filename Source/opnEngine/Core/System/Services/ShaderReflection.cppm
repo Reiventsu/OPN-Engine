@@ -7,22 +7,13 @@ module;
 #include "slang-com-ptr.h"
 #include "volk.h"
 export module opn.System.Service.ShaderReflection;
+import opn.Renderer.Types;
 import opn.System.ServiceInterface;
 import opn.Utils.Logging;
 
 using Slang::ComPtr;
 
 export namespace opn {
-    struct sSetLayoutData {
-        uint32_t setIndex;
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-    };
-
-    struct sShaderReflection {
-        std::vector<uint32_t> spirvCode;
-        std::vector<sSetLayoutData> setLayouts;
-        std::vector<VkPushConstantRange> pushConstants;
-    };
 
     class ShaderCompiler final : public Service<ShaderCompiler> {
         ComPtr<slang::IGlobalSession> m_globalSession;
@@ -81,7 +72,7 @@ export namespace opn {
 
             sShaderReflection result;
             auto code = static_cast<const uint32_t *>(spirvBlob->getBufferPointer());
-            result.spirvCode.assign(code, code + (spirvBlob->getBufferSize() / sizeof(uint32_t)));
+            result.byteCode.assign(code, code + (spirvBlob->getBufferSize() / sizeof(uint32_t)));
 
             slang::ProgramLayout *layout = linkedProgram->getLayout();
             reflectResources(layout, result);

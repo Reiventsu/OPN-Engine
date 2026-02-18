@@ -6,6 +6,7 @@ export module opn.System.Service.Rendering;
 import opn.Renderer.Backend;
 import opn.System.ServiceInterface;
 import opn.Utils.Logging;
+import opn.Utils.Locator;
 import opn.System.Service.WindowSystem;
 
 export namespace opn {
@@ -30,7 +31,7 @@ export namespace opn {
         };
 
         void onPostInit() override {
-            if (auto *ws = WindowSystem::getService()) {
+            if (auto *ws = Locator::getService<WindowSystem>()) {
                 m_Backend.bindToWindow(*ws);
             } else {
                 opn::logCritical("Rendering", "Failed to bind rendering backend, window system not found." );

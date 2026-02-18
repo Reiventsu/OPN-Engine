@@ -13,8 +13,6 @@ module;
 export module opn.System.Jobs.Dispatcher;
 import opn.System.Jobs.Types;
 import opn.System.Jobs.Handle;
-import opn.Utils.Locator;
-
 import opn.System.Thread.MPSCQueue;
 import opn.Utils.Logging;
 import opn.Utils.Exceptions;
@@ -37,9 +35,6 @@ export namespace opn {
         }
     };
 
-    /**
-     * @brief Monostate class for Job System.
-     */
     class JobDispatcher {
     public:
         JobDispatcher() = default;

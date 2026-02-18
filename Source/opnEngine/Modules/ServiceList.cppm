@@ -4,7 +4,7 @@ module;
 
 export module opn.System.EngineServiceList;
 
-import opn.System.Services;
+import opn.Modules.Services;
 import opn.Renderer.RenderPackage;
 import opn.System.SystemTypeList;
 import opn.System.ServiceManager;

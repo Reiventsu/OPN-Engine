@@ -1,28 +1,23 @@
 module;
 
 #include <functional>
+#include <mutex>
 #include <string>
-#include <thread>
-#include <vector>
 #include <shared_mutex>
 
 #include <fastgltf/core.hpp>
 
 export module opn.System.Service.AssetSystem;
 import opn.System.ServiceInterface;
-import opn.System.JobDispatcher;
+import opn.System.Jobs.Types;
+import opn.Utils.Locator;
 import opn.Utils.Logging;
 import opn.System.UUID;
-import opn.System.ServiceManager;
 import opn.Assets.Defines;
 import opn.Assets.Types;
 
-
 namespace opn {
-    struct cmd_UploadMesh;
-    struct cmd_UploadTexture;
-
-    using tAsset = std::variant< Mesh, Texture, Material >;
+    using tAsset = std::variant<Mesh, Texture, Material>;
 
     enum class eAssetErrorType {
         FileNotFound,
@@ -40,33 +35,10 @@ namespace opn {
         Failed,
     };
 
-    struct sAssetError {
-
-        eAssetErrorType type;
-        std::string path;
-        std::string details;
-
-        [[nodiscard]] std::string toString() const {
-            return std::format("[{}] {}: {}", errorTypeToString(type), path, details);
-        };
-
-    private:
-        static std::string_view errorTypeToString(const eAssetErrorType _type) {
-            switch (_type) {
-                case eAssetErrorType::FileNotFound:        return "FileNotFound";
-                case eAssetErrorType::ParsingError:        return "ParsingError";
-                case eAssetErrorType::UnsupportedFileType: return "UnsupportedFileType";
-                case eAssetErrorType::OutOfMemory:         return "OutOfMemory";
-                case eAssetErrorType::InvalidData:         return "InvalidData";
-                default: return "Unknown";
-            }
-        }
-    };
-
     struct sAssetMetadata {
         eAssetState state = eAssetState::Uninitialized;
         std::string path;
-        std::variant< opn::Mesh, opn::Texture, opn::Material > data;
+        tAsset data;
     };
 
     export class AssetSystem;
@@ -85,83 +57,64 @@ namespace opn {
         friend struct CommandAssetLoad;
         friend struct CommandAssetUnload;
 
-        std::unordered_map< UUID, tAsset, UUIDHasher > m_assets;
-        std::unordered_map< std::string, UUID >        m_pathToHandle;
-        std::unordered_map< UUID, size_t, UUIDHasher > m_refCounts;
-
+        std::unordered_map<UUID, tAsset, UUIDHasher> m_assets;
+        std::unordered_map<std::string, UUID> m_pathToHandle;
+        std::unordered_map<UUID, size_t, UUIDHasher> m_refCounts;
         mutable std::shared_mutex m_assetsMutex;
         fastgltf::Parser m_gltfParser;
-        std::vector<std::jthread> m_workers;
 
     public:
-        [[nodiscard]] static CommandAssetLoad load(std::string path) { return CommandAssetLoad{std::move(path)}; }
-        [[nodiscard]] static CommandAssetUnload unload(std::string path) { return CommandAssetUnload{std::move(path)}; }
+        [[nodiscard]] static CommandAssetLoad load(std::string path) {
+            return CommandAssetLoad{std::move(path)};
+        }
+
+        [[nodiscard]] static CommandAssetUnload unload(std::string path) {
+            return CommandAssetUnload{std::move(path)};
+        }
 
         void onInit() override {
-            const auto threadCount = std::max(1u, std::thread::hardware_concurrency() / 4);
-
-            m_workers.reserve(threadCount);
-            for (size_t i = 0; i < threadCount; ++i) {
-                m_workers.emplace_back([this](const std::stop_token &_st) {
-                    workerLoop(_st);
-                });
-            }
+            opn::logInfo("AssetService", "Initialized.");
         }
 
         void onShutdown() override {
-            for (auto &worker: m_workers) {
-                worker.request_stop();
-            }
-            JobDispatcher::wakeWorkers(eJobType::Asset);
-
-            m_workers.clear();
+            std::unique_lock lock(m_assetsMutex);
+            m_assets.clear();
+            m_pathToHandle.clear();
+            m_refCounts.clear();
             opn::logInfo("AssetService", "Shutdown successfully.");
         }
 
         void onUpdate(float _deltaTime) override {
-        };
-
-    private:
-        void workerLoop(const std::stop_token &_stopToken) {
-            auto &assetQueue = JobDispatcher::getQueue(eJobType::Asset);
-            uint32_t lastSignal = 0;
-
-            while (!_stopToken.stop_requested()) {
-                sTask task;
-                if (assetQueue >> task) {
-                    if (task.execute) {
-                        task.execute();
-
-                        // Signal done
-                        JobDispatcher::signalCompletion(task.fenceID);
-                    }
-                } else {
-                    JobDispatcher::waitForWork(eJobType::Asset, lastSignal);
-                }
-            }
         }
 
+    private:
+        void loadInternal(const std::string &_path) {
+            Locator::submit(eJobType::Asset, [this, _path]() {
+                // TODO: parse with m_gltfParser, populate m_assets
+                opn::logInfo("AssetService", "Loading asset: {}", _path);
+            });
+        }
 
-        /// Asset functions n stuff
-
-
-        /// TODO make these not dummy functions
-
-        void loadInternal(const std::string &_path) {}
-
-        void unloadInternal(const std::string &_path) {}
+        void unloadInternal(const std::string &_path) {
+            std::unique_lock lock(m_assetsMutex);
+            if (auto itr = m_pathToHandle.find(_path); itr != m_pathToHandle.end()) {
+                m_assets.erase(itr->second);
+                m_refCounts.erase(itr->second);
+                m_pathToHandle.erase(itr);
+            }
+        }
     };
 
     void CommandAssetLoad::operator()() {
-        if ( auto *sys = AssetSystem::getService()) {
+        if (auto *sys = Locator::getService<AssetSystem>()) {
             sys->loadInternal(assetPath);
         } else {
-            logError("AssetService", "Failed to load asset {} as AssetSystem is not initialized.", assetPath);
+            logError("AssetService", "Failed to load asset {} - AssetSystem not found.", assetPath);
         }
     }
 
     void CommandAssetUnload::operator()() {
-        if (auto *sys = AssetSystem::getService()) {
+        if (auto *sys = Locator::getService<AssetSystem>()) {
             sys->unloadInternal(assetPath);
         }
     }

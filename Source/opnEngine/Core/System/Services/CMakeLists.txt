@@ -21,7 +21,6 @@ target_sources(Services
         ShaderReflection.cppm
         Rendering.cppm
         AssetService/AssetSystem.cppm
-        SystemsPackage.cppm
 )
 
 target_link_libraries(Services

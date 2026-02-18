@@ -1,8 +1,6 @@
+export module opn.Modules.Services;
 // A simple re-exporter of service systems
 // making it easier to include all systems.
-
-export module opn.System.Services;
-import opn.System.ServiceInterface;
 
 export import opn.System.Service.AssetSystem;
 export import opn.System.Service.WindowSystem;

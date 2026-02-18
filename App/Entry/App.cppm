@@ -9,6 +9,7 @@ import opn.Utils.Logging;  // Optional
 // Use import directives between here and the class
 import opn.ECS;
 import opn.ECS.Components;
+import opn.System.Jobs.Types;
 
 export class UserApplication final : public opn::iApplication {
 protected:
@@ -20,30 +21,24 @@ protected:
     }
 
     void onPostInit() override {
-
         using namespace opn;
 
-        Locator::useService<EntityComponentSystem>([](const auto& _ecs) {
-            // 2. Dispatch the spawning job to a worker thread
-            Dispatch::execute([&_ecs]() {
+        if (auto* ecs = Locator::getService<EntityComponentSystem>()) {
+            Locator::submit(eJobType::General, [ecs]() {
                 logInfo("App", "Starting mass entity spawn...");
 
-                // Spawn 1000 entities with transforms
                 for (int i = 0; i < 1000; ++i) {
-                    // Get an immediate handle (Atomic)
-                    auto e = _ecs.createEntity();
-
-                    // Queue component additions (Deferred to Playback)
-                    _ecs.addComponent(e, components::Transform{
-                        .position = { i, 0.0f, 0.0f},
+                    auto e = ecs->createEntity();
+                    ecs->addComponent(e, components::Transform{
+                        .position = { static_cast<float>(i), 0.0f, 0.0f },
                         .rotation = {},
-                        .scale = {}
+                        .scale    = {}
                     });
                 }
 
                 logInfo("App", "Successfully queued 1000 entities!");
             });
-        });
+        }
     }
 
     void onShutdown() override {
