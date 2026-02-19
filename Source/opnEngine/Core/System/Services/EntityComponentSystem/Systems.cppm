@@ -22,8 +22,7 @@ export namespace opn::systems {
 
         void renderMeshes() {
             auto& backend = Locator::getService<iRenderingService>()->getBackend();
-            auto* compiler = Locator::getService<ShaderCompiler>();
-            auto* time = Locator::getService<Time>();
+            const auto* compiler = Locator::getService<ShaderCompiler>();
 
             m_registry->forEach<components::Transform, components::Renderable>(
                 [&](tEntity _entity, const auto& _transform, const auto& _renderable) {

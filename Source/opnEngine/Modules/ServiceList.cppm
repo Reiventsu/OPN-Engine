@@ -12,7 +12,7 @@ export namespace opn {
         WindowSystem,
         Rendering<VulkanImpl>,
         ShaderCompiler,
-        AssetSystem,
+        AssetService,
         EntityComponentSystem
     >;
     using EngineServiceManager = ServiceManager_Impl<EngineServices>;

@@ -4,6 +4,9 @@ target_sources(AssetTypes
         PUBLIC
         FILE_SET CXX_MODULES FILES
         AssetTypes.cppm
+
+        PUBLIC
+        AssetPaths.inl
 )
 
 target_link_libraries(AssetTypes

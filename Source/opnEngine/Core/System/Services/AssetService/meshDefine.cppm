@@ -12,10 +12,12 @@ export namespace opn {
         std::vector<float> normals;
         std::vector<float> uvs;
         std::vector<uint32_t> indices;
-        std::string name;
 
-        std::atomic_bool uploadedToGPU = false;
-        vkUtil::sGPUMeshBuffers gpuMeshBuffers;
-        uint32_t indexCount;
+        std::string name;
+        uint32_t vertexCount {0};
+        uint32_t indexCount {0};
+
+        std::atomic_bool        uploadedToGPU = false;
+        vkUtil::sGPUMeshStreams gpuStreams;
     };
 }

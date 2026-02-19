@@ -26,6 +26,9 @@ module;
 export module opn.Rendering.Util.vk.vkTypes;
 
 export namespace opn::vkUtil {
+
+
+
     struct sAllocatedImage {
         VkImage       image;
         VkImageView   imageView;
@@ -55,6 +58,13 @@ export namespace opn::vkUtil {
         hlslpp::float4   ambientColor;
         hlslpp::float4   sunlightDirection; // w for sun power
         hlslpp::float4   sunlightColor;
+    };
+
+    struct sGPUMeshStreams {
+        sAllocatedBuffer positions;
+        sAllocatedBuffer normals;
+        sAllocatedBuffer uvs;
+        sAllocatedBuffer indices;
     };
 
     enum class sMaterialPass : uint8_t {

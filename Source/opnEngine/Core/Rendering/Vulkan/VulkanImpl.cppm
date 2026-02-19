@@ -1,10 +1,10 @@
 module;
 #include <atomic>
-#include <complex>
-#include <deque>
 #include <filesystem>
 #include <functional>
 #include <thread>
+#include <deque>
+#include <algorithm>
 
 #include "hlsl++.h"
 
@@ -154,6 +154,8 @@ export namespace opn {
 
         std::vector< sComputeEffect > m_backgroundEffects{};
         int32_t m_currentBackgroundEffect = 0;
+
+        std::unordered_map<sPipelineSignature, VkPipelineLayout, sPipelineSignatureHash> m_pipelineLayoutCache;
 
         // -- Implementation --
 
@@ -910,6 +912,55 @@ export namespace opn {
             opn::logDebug("VulkanBackend", "ImGui objects created.");
         }
 
+        VkPipelineLayout getOrCreatePipelineLayout(const sShaderReflection& _reflection) {
+            const auto sig = sPipelineSignature::from(_reflection);
+
+            if (const auto itr = m_pipelineLayoutCache.find(sig); itr != m_pipelineLayoutCache.end() ) {
+                return itr->second;
+            }
+
+            auto sortedSets = _reflection.setLayouts;
+            std::ranges::sort(sortedSets, {}, &sSetLayoutData::setIndex);;
+
+            std::vector<VkDescriptorSetLayout> setLayouts;
+            setLayouts.reserve(sortedSets.size());
+
+            for (const auto& setData : sortedSets) {
+                VkDescriptorSetLayoutCreateInfo info {
+                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                    .bindingCount = static_cast<uint32_t>(setData.bindings.size()),
+                    .pBindings = setData.bindings.data()
+                };
+                VkDescriptorSetLayout layout;
+                vkUtil::vkCheck(vkCreateDescriptorSetLayout(m_device, &info, nullptr, &layout),
+                               "vkCreateDescriptorSetLayout (reflection)"
+                );
+                setLayouts.push_back(layout);
+            };
+
+            VkPipelineLayoutCreateInfo layoutInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                .setLayoutCount = static_cast<uint32_t>(setLayouts.size()),
+                .pSetLayouts = setLayouts.data(),
+                .pushConstantRangeCount = static_cast<uint32_t>(_reflection.pushConstants.size()),
+                .pPushConstantRanges = _reflection.pushConstants.data()
+            };
+
+            VkPipelineLayout pipelineLayout;
+            vkUtil::vkCheck(vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &pipelineLayout),
+                           "vkCreatePipelineLayout (reflection)"
+            );
+
+            m_pipelineLayoutCache.emplace(sig, pipelineLayout);
+
+            for( auto dsl : setLayouts) {
+                 m_mainDeletionQueue.pushFunction([this, dsl]{vkDestroyDescriptorSetLayout(m_device, dsl, nullptr); });
+                 m_mainDeletionQueue.pushFunction([this, pipelineLayout]{ vkDestroyPipelineLayout(m_device, pipelineLayout, nullptr); });
+            }
+
+            return pipelineLayout;
+        }
+
         void destroySwapchain() {
             if( m_device != VK_NULL_HANDLE ) {
                 vkDeviceWaitIdle( m_device );
@@ -995,6 +1046,79 @@ export namespace opn {
 
             destroyBuffer( staging );
             return newSurface;
+        }
+
+        vkUtil::sGPUMeshStreams uploadMeshStreams(
+            std::span<const float>    _positions,
+            std::span<const float>    _normals,
+            std::span<const float>    _uvs,
+            std::span<const uint32_t> _indices
+        ) {
+            vkUtil::sGPUMeshStreams streams{};
+
+            const size_t posSize = _positions.size_bytes();
+            const size_t normalSize = _normals.size_bytes();
+            const size_t uvSize = _uvs.size_bytes();
+            const size_t indicesSize = _indices.size_bytes();
+            const size_t stagingSize = posSize + normalSize + uvSize + indicesSize;
+
+            vkUtil::sAllocatedBuffer staging = createBuffer(
+                stagingSize,
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VMA_MEMORY_USAGE_CPU_ONLY
+            );
+
+            VmaAllocationInfo stagingAllocInfo{};
+            vmaGetAllocationInfo(m_vmaAllocator, staging.allocation, &stagingAllocInfo);
+            char* dst = static_cast<char*>(stagingAllocInfo.pMappedData);
+
+            memcpy(dst, _positions.data(), posSize);
+            memcpy(dst + posSize, _normals.data(), normalSize);
+            memcpy(dst + posSize + normalSize, _uvs.data(), uvSize);
+            memcpy(dst + posSize + normalSize + uvSize, _indices.data(), indicesSize);
+
+            streams.positions = createBuffer(
+                posSize,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            streams.normals = createBuffer(
+                normalSize,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            streams.uvs = createBuffer(
+                uvSize,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            streams.indices = createBuffer(
+                indicesSize,
+                VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY
+            );
+
+            submitImmediate([&](VkCommandBuffer _cmd){
+                VkBufferCopy copy{};
+
+                copy = { .srcOffset = 0, .dstOffset = 0, .size = posSize };
+                vkCmdCopyBuffer(_cmd, staging.buffer, streams.positions.buffer, 1, &copy);
+
+                copy = { .srcOffset = posSize, .dstOffset = 0, .size = normalSize };
+                vkCmdCopyBuffer(_cmd, staging.buffer, streams.normals.buffer, 1, &copy);
+
+                copy = { .srcOffset = posSize + normalSize, .dstOffset = 0, .size = uvSize };
+                vkCmdCopyBuffer(_cmd, staging.buffer, streams.uvs.buffer, 1, &copy);
+
+                copy = { .srcOffset = posSize + normalSize + uvSize, .dstOffset = 0, .size = indicesSize };
+                vkCmdCopyBuffer(_cmd, staging.buffer, streams.indices.buffer, 1, &copy);
+            });
+
+            destroyBuffer( staging );
+            return streams;
         }
 
         void init() override {

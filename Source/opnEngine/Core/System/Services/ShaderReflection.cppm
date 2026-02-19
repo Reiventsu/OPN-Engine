@@ -17,6 +17,7 @@ export namespace opn {
 
     class ShaderCompiler final : public Service<ShaderCompiler> {
         ComPtr<slang::IGlobalSession> m_globalSession;
+        mutable std::unordered_map<std::string, sShaderReflection> m_reflectionCache;
 
     protected:
         void onInit() override {
@@ -32,6 +33,11 @@ export namespace opn {
     public:
         [[nodiscard]] std::expected<sShaderReflection, std::string>
         compile(const std::filesystem::path &_filePath, const std::string_view _entryPoint = "main") const {
+            const auto key = _filePath.string();
+            if (const auto itr = m_reflectionCache.find(key); itr != m_reflectionCache.end()) {
+                return itr->second;
+            }
+
             slang::SessionDesc sessionDesc{};
             slang::TargetDesc targetDesc{};
             targetDesc.format = SLANG_SPIRV;
@@ -77,6 +83,7 @@ export namespace opn {
             slang::ProgramLayout *layout = linkedProgram->getLayout();
             reflectResources(layout, result);
 
+            m_reflectionCache.emplace(key, result);
             return result;
         }
 

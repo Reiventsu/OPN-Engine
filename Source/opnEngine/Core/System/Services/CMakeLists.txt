@@ -20,7 +20,7 @@ target_sources(Services
         WindowSystem.cppm
         ShaderReflection.cppm
         Rendering.cppm
-        AssetService/AssetSystem.cppm
+        AssetService/AssetService.cppm
 )
 
 target_link_libraries(Services

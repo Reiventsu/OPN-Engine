@@ -1,11 +1,13 @@
 module;
 
+#include <filesystem>
 #include <functional>
 #include <mutex>
 #include <string>
 #include <shared_mutex>
 
 #include <fastgltf/core.hpp>
+#include "AssetPaths.inl"
 
 export module opn.System.Service.AssetSystem;
 import opn.System.ServiceInterface;
@@ -35,13 +37,24 @@ namespace opn {
         Failed,
     };
 
+    enum class eAssetType {
+        Mesh,
+        Texture,
+        Shader,
+        Unknown,
+    };
+
+    struct sAssetDescriptor {
+        std::filesystem::path canonicalPath;
+        eAssetType            type;
+        eAssetState           state = eAssetState::Uninitialized;
+    };
+
     struct sAssetMetadata {
-        eAssetState state = eAssetState::Uninitialized;
-        std::string path;
         tAsset data;
     };
 
-    export class AssetSystem;
+    export class AssetService;
 
     export struct CommandAssetLoad {
         std::string assetPath;
@@ -53,7 +66,7 @@ namespace opn {
         void operator()();
     };
 
-    export class AssetSystem final : public Service<AssetSystem> {
+    export class AssetService final : public Service<AssetService> {
         friend struct CommandAssetLoad;
         friend struct CommandAssetUnload;
 
@@ -73,6 +86,8 @@ namespace opn {
         }
 
         void onInit() override {
+            opn::logInfo("AssetService", "Initializing...");
+            scanDirectory(assetsRoot());
             opn::logInfo("AssetService", "Initialized.");
         }
 
@@ -88,6 +103,53 @@ namespace opn {
         }
 
     private:
+        std::unordered_map<std::string, sAssetDescriptor> m_assetRegistry;
+
+        static eAssetType classifyExtension(const std::filesystem::path& _ext) {
+            if (_ext == ".slang")                      return eAssetType::Shader;
+            if (_ext == ".gltf" || _ext == ".glb")     return eAssetType::Mesh;
+            if (_ext == ".png"  || _ext == ".jpg"
+             || _ext == ".jpeg" || _ext == ".ktx")     return eAssetType::Texture;
+            return eAssetType::Unknown;
+        }
+
+        void scanDirectory(const std::filesystem::path& _root) {
+            if (!std::filesystem::exists(_root)) {
+                opn::logWarning("AssetService", "Asset directory not found: {}", _root.string());
+                return;
+            }
+
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(_root)) {
+                if (!entry.is_regular_file()) continue;
+
+                const auto ext = entry.path().extension();
+                const auto type = classifyExtension(ext);
+
+                if (type == eAssetType::Unknown) {
+                    opn::logInfo("AssetService", "Ignoring unrecognised file: {}", entry.path().filename().string());
+                    continue;
+                }
+
+                auto canonical = std::filesystem::canonical(entry.path());
+                auto root = std::filesystem::canonical(_root);
+
+                if (canonical.string().find(root.string()) != 0) {
+                    opn::logWarning("AssetService", "Rejecting path outside assets root: {}", canonical.string());
+                    continue;
+                }
+
+                const auto key = canonical.string();
+                m_assetRegistry[key] = sAssetDescriptor{
+                    .canonicalPath = canonical,
+                    .type = type,
+                    .state = eAssetState::Uninitialized
+                };
+
+                opn::logDebug("AssetService", "Discovered [{}]: {}", ext.string(), canonical.filename().string() );
+            }
+            opn::logInfo("AssetService", "Asset scan complete. {} assets discovered.", m_assetRegistry.size());
+        }
+
         void loadInternal(const std::string &_path) {
             Locator::submit(eJobType::Asset, [this, _path]() {
                 // TODO: parse with m_gltfParser, populate m_assets
@@ -106,7 +168,7 @@ namespace opn {
     };
 
     void CommandAssetLoad::operator()() {
-        if (auto *sys = Locator::getService<AssetSystem>()) {
+        if (auto *sys = Locator::getService<AssetService>()) {
             sys->loadInternal(assetPath);
         } else {
             logError("AssetService", "Failed to load asset {} - AssetSystem not found.", assetPath);
@@ -114,7 +176,7 @@ namespace opn {
     }
 
     void CommandAssetUnload::operator()() {
-        if (auto *sys = Locator::getService<AssetSystem>()) {
+        if (auto *sys = Locator::getService<AssetService>()) {
             sys->unloadInternal(assetPath);
         }
     }
