@@ -1070,7 +1070,7 @@ export namespace opn {
 
             VmaAllocationInfo stagingAllocInfo{};
             vmaGetAllocationInfo(m_vmaAllocator, staging.allocation, &stagingAllocInfo);
-            char* dst = static_cast<char*>(stagingAllocInfo.pMappedData);
+            auto dst = static_cast<char*>(stagingAllocInfo.pMappedData);
 
             memcpy(dst, _positions.data(), posSize);
             memcpy(dst + posSize, _normals.data(), normalSize);
@@ -1189,7 +1189,7 @@ export namespace opn {
                     vkDestroySemaphore(m_device, i.m_imageAvailableSemaphore, nullptr);
                 }
 
-                for (auto semaphore : m_renderFinishedSemaphores ) {
+                for (const auto semaphore : m_renderFinishedSemaphores ) {
                     vkDestroySemaphore(m_device, semaphore, nullptr);
                 }
                 m_renderFinishedSemaphores.clear();
