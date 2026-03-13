@@ -13,4 +13,5 @@ target_link_libraries(Components
         PUBLIC
         AssetTypes
         hlslpp
+        Vulkan::Headers
 )

@@ -39,12 +39,12 @@ export namespace opn {
         uint32_t               m_frameNumber{ };
         WindowSurfaceProvider *m_windowHandle = nullptr;
 
-        VkInstance               m_instance             = nullptr;
-        VkDebugUtilsMessengerEXT m_debugMessenger       = nullptr;
-        VkPhysicalDevice         m_chosenDevice         = nullptr;
-        VkDevice                 m_device               = nullptr;
-        VkSurfaceKHR             m_surface              = nullptr;
-        VkSwapchainKHR           m_swapchain            = nullptr;
+        VkInstance               m_instance       = nullptr;
+        VkDebugUtilsMessengerEXT m_debugMessenger = nullptr;
+        VkPhysicalDevice         m_chosenDevice   = nullptr;
+        VkDevice                 m_device         = nullptr;
+        VkSurfaceKHR             m_surface        = nullptr;
+        VkSwapchainKHR           m_swapchain      = nullptr;
 
         VkFormat                 m_swapchainImageFormat{ };
         std::vector<VkImage>     m_swapchainImages;
@@ -953,10 +953,15 @@ export namespace opn {
 
             m_pipelineLayoutCache.emplace(sig, pipelineLayout);
 
-            for( auto dsl : setLayouts) {
-                 m_mainDeletionQueue.pushFunction([this, dsl]{vkDestroyDescriptorSetLayout(m_device, dsl, nullptr); });
-                 m_mainDeletionQueue.pushFunction([this, pipelineLayout]{ vkDestroyPipelineLayout(m_device, pipelineLayout, nullptr); });
+            for( auto dsl : setLayouts ) {
+                m_mainDeletionQueue.pushFunction( [ this, dsl ] {
+                    vkDestroyDescriptorSetLayout( m_device, dsl, nullptr );
+                });
             }
+
+            m_mainDeletionQueue.pushFunction([this, pipelineLayout] {
+                vkDestroyPipelineLayout(m_device, pipelineLayout, nullptr);
+            });
 
             return pipelineLayout;
         }
